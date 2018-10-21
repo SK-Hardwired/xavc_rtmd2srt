@@ -69,6 +69,11 @@ def getsdur():
         sdur = 1.0/25.0
     elif framemax == 23:
         sdur = 1001.0/24000.0
+    elif framemax == 99:
+        sdur = 1.0/100.0
+    elif framemax == 119:
+        sdur = 1.0/120.0
+    print 'Max. frame = ' + str(framemax)
     return sdur
 
 def getpasm():
@@ -97,7 +102,7 @@ def sampletime (ssec,sdur):
 chunk = 16777216
 progr = 0
 delta1 = 0
-framemax = 0
+framemax = -1
 
 if not os.path.exists(args.infile) :
     print ('Error! Given input file name not found! Please check path given in CMD or set in script code!')
@@ -115,11 +120,12 @@ s = ConstBitStream(filename=F)
 
 samples = s.findall('0x001c0100', bytealigned=True) 
 print 'Processing...'
-
+#Debug# print len(tuple(samples))
 
 #Find the frame rate by finding max frame counter at 0x11 of chunk. Use 
 for i in samples :
     frame = s[i+17*8:i+18*8].read('uint:8')
+    #print frame
     if frame > framemax :
         framemax = frame
     else :
