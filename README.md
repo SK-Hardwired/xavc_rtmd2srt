@@ -8,4 +8,4 @@ This tool tries to extract these from XAVC S (MP4) file and create SRT subtitle 
 Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 argument (video file name)
 Example: **xavcs_rtmd_bin_2.exe D:\Video\C0035.MP4**
 
-Note: Works well with Sony ILCE-A7RM3/A7M3, DSC-RX10M4 and FDR-AX700 videos. Limited compatibility with ActionCam videos - works well if no GPS data captured.
+Note: Works well with Sony ILCE-7RM3/7M3, DSC-RX10M4 and FDR-AX700 videos. Limited compatibility with ActionCam videos - works well if no GPS data captured.
