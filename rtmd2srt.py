@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import mmap
 #import numpy as np
 from bitstring import  ConstBitStream #BitArray, BitStream, pack, Bits,
 from datetime import datetime, timedelta
@@ -59,31 +60,30 @@ def getdb():
     return str(db)
 
 def getsdur():
-    if framemax == 59:
+    if ffps == '59.94p':
         sdur = 1001.0/60000.0
-    elif framemax == 29:
+    elif ffps == '29.97p':
         sdur = 1001.0/30000.0
-    elif framemax == 49:
+    elif ffps == '50p':
         sdur = 1.0/50.0
-    elif framemax == 24:
+    elif ffps == '25p':
         sdur = 1.0/25.0
-    elif framemax == 23:
-        sdur = 1001.0/24000.0
-    elif framemax == 99:
+    elif ffps == '24p':
+        sdur = 100.0/24000.0
+    elif ffps == '100p':
         sdur = 1.0/100.0
-    elif framemax == 119:
+    elif ffps == '120p':
         sdur = 1.0/120.0
-    print 'Max. frame = ' + str(framemax)
     return sdur
 
 def getpasm():
     k = 78*8+delta1
     j = k+16*8
-    if sub[k:j] == '0x060E2B340401010B0510010101010000' : ae = 'Manual exposure'
-    elif sub[k:j] == '0x060E2B340401010B0510010101020000' : ae = 'Auto exposure'
-    elif sub[k:j] == '0x060E2B340401010B0510010101030000' : ae = 'Gain priority'
-    elif sub[k:j] == '0x060E2B340401010B0510010101040000' : ae = 'Aperture priority'
-    elif sub[k:j] == '0x060E2B340401010B0510010101050000' : ae = 'Shutter priority'
+    if sub[k:j] == '0x060E2B340401010B0510010101010000' : ae = 'Exp. mode: M '
+    elif sub[k:j] == '0x060E2B340401010B0510010101020000' : ae = 'Exp. mode: AUTO'
+    elif sub[k:j] == '0x060E2B340401010B0510010101030000' : ae = 'Exp. mode: GAIN'
+    elif sub[k:j] == '0x060E2B340401010B0510010101040000' : ae = 'Exp. mode: A'
+    elif sub[k:j] == '0x060E2B340401010B0510010101050000' : ae = 'Exp. mode: S'
     else : ae = 'N/A'
     return ae
 
@@ -99,15 +99,11 @@ def sampletime (ssec,sdur):
     result =  d[:-3] + ' --> ' + de[:-3]
     return result
 
-chunk = 16777216
-progr = 0
 delta1 = 0
-framemax = -1
 
 if not os.path.exists(args.infile) :
     print ('Error! Given input file name not found! Please check path given in CMD or set in script code!')
     sys.exit()
-
 
 #F = "C:/Users/ruskugaa/Downloads/C0275.mp4"
 #F = "D:/Temp/rtmd/C0002.MP4"
@@ -118,64 +114,75 @@ print 'Opened file ' + F
 print 'Analyzing...'
 s = ConstBitStream(filename=F)
 
+### NRT_Acquire START ###
+filesize = os.path.getsize(F)
+
+all_the_data = open(F,'r+')
+offset = (filesize/mmap.ALLOCATIONGRANULARITY-1)* mmap.ALLOCATIONGRANULARITY
+m = mmap.mmap(all_the_data.fileno(),0,access=mmap.ACCESS_READ, offset = offset)
+
+pattern = 'Duration value="(.*?)".*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
+result = rx.findall(m)
+
+for duration,ffps, vendor, modelname in result:
+    print 'Model Name:', vendor, modelname
+    print 'Video duration (frames):',duration
+    print 'Video framerate:',ffps
+all_the_data.close()
+### NRT_Acquire END ###
+    
+
 samples = s.findall('0x001c0100', bytealigned=True) 
 print 'Processing...'
-#Debug# print len(tuple(samples))
-
-#Find the frame rate by finding max frame counter at 0x11 of chunk. Use 
-for i in samples :
-    frame = s[i+17*8:i+18*8].read('uint:8')
-    #print frame
-    if frame > framemax :
-        framemax = frame
-    else :
-        break
 
 sdur = getsdur()
 
-c=0
 ssec = 0
 k=0
 offset = 0
 with open(F[:-3]+'srt', 'w') as f:
-    try:
-        while True:
-            s = ConstBitStream(filename=F)
-            #Debug# print s
-            samples = (s.find('0x001c0100', start = offset, bytealigned=True))
-            #Debug# print 'Samples:', len(samples)
-            #Debug# if samples [0]
-            i = samples[0]
-            #Debug# print i
-            sub = s[i:(i+1024*8)]
-            if sub[54*8:55*8] != '0x06' and sub[134*8:135*8] !='0x06':
-                delta1 = 48
 
-            fn = getfn()
-            ss=getss()
-            iso=getiso()
-            db = getdb()
-            ae=getpasm()
-            if sub[54*8:55*8] != '0x06': 
-                dist=getdist()
-            else: dist = 'N/A'
-            
-            c=c+1
-            #Debug# print c
+    for c in range(int(duration)):
+        s = ConstBitStream(filename=F)
+        #Debug# print s
+        samples = (s.find('0x001c0100', start = offset, bytealigned=True))
+        #Debug# print 'Samples:', len(samples)
+        #Debug# if samples [0]
+        i = samples[0]
+        #Debug# print i
+        sub = s[i:(i+1024*8)]
+        if sub[54*8:55*8] != '0x06' and sub[134*8:135*8] !='0x06':
+            delta1 = 48
 
-            f.write (str(c) +'\n')
-            f.write (str(sampletime(ssec,sdur)) + '\n')
-            f.write (ae +'  ISO: ' + str(iso) + '   Gain: ' + str(db) +'db' + '   F' + str(fn) + '   Shutter: ' + str(ss) + '\n') # cut '  x8115: ' + x8115 +
-            f.write ('Dist: ' + dist + '\n')
-            f.write ('\n')
-            ssec=ssec+sdur
-            offset = s.pos + 1024*8 - 8
-            #Debug# print offset
+        fn = getfn()
+        ss=getss()
+        iso=getiso()
+        db = getdb()
+        ae=getpasm()
+        if sub[54*8:55*8] != '0x06': 
+            dist=getdist()
+        else: dist = 'N/A'
+        c+=1
+        
+        #Debug# print c
 
- 
-    except Exception as e :
-        print 'Last pos', i
-        print 'Last frame', c
-        #Debug# print("type error: " + str(e))
+        f.write (str(c) +'\n')
+        f.write (str(sampletime(ssec,sdur)) + '\n')
+        
+        f.write ('FPS: ' + ffps + '  Frame: ' + str(c) + '/' + duration + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
+        f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
+        f.write ('Focus Distance: ' + dist + '\n')
+        f.write ('\n')
+        ssec=ssec+sdur
+        offset = s.pos + 1024*8 - 8
+        #Debug# print offset
+
+
+
+    #Debug" print 'Last pos', i
+    print 'Last frame processed:', c
+    #Debug# print("type error: " + str(e))
 print 'Success! SRT file created: ' + F[:-3]+'srt'
+
 #Debug# gc.collect()
