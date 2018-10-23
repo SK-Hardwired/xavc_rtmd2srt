@@ -77,6 +77,7 @@ def getsdur2(framemax):
         sdur = 1.0/100.0
     elif framemax == 119:
         sdur = 1001.0/120000.0
+    #print 'Debug: Framemax =',framemax
     return sdur
 
 def getpasm():
@@ -122,7 +123,7 @@ if len(sampl_check) != 0:
     sampl_string = '0x001c0100'
     samples = s.findall(sampl_string, bytealigned=True)
 else:
-    print 'No proper rtmd tags detected. Probably you have non-XAVC S file or file from older camera (ex. ILCE-5100). Exiting.'
+    print 'No proper rtmd tags detected. Probably you have non-XAVCS file or XAVCS file from earlier camera (ex. ILCE-5100). Exiting.'
     exit()
 
 
@@ -185,7 +186,7 @@ with open(F[:-3]+'srt', 'w') as f:
         iso=getiso()
         db = getdb()
         ae=getpasm()
-        if 'ILCE' or 'FDR-AX' in modelname: 
+        if 'ILCE' in modelname or 'FDR-AX' in modelname: 
             dist=getdist()
         else: dist = 'N/A'
         c+=1
@@ -209,3 +210,5 @@ with open(F[:-3]+'srt', 'w') as f:
     print 'Last frame processed:', c
     #Debug# print("type error: " + str(e))
 print 'Success! SRT file created: ' + F[:-3]+'srt'
+
+
