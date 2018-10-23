@@ -9,3 +9,10 @@ Windows x64 executable available (see zip file in files list). Usage: as any con
 Example: **xavcs_rtmd_bin_2.exe D:\Video\C0035.MP4**
 
 Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4 and FDR-AX700 videos. Limited compatibility with ActionCam videos - works well if no GPS data captured.
+
+Python 2.7x
+
+Reference:
+[EBU - Tech 3349 EBU Acquisition Technical Metadata Set](https://tech.ebu.ch/docs/tech/tech3349.pdf)
+
+[Appendix (pg.70) of Sony CineAlta F65 manual](https://pro.sony/s3/cms-static-content/uploadfile/00/1237493055500.pdf)
