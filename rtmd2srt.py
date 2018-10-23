@@ -49,7 +49,10 @@ def getdist():
     diste = sub[k:j].read('int:4')
     distm = sub[k+4:j].read('uint:12')
     dist = float(distm*(10**diste))
-    return str(dist)+'m'
+    if dist >= 65500 :
+        dist = 'Inf.'
+    else: dist = str(dist)+'m'
+    return dist
 
 def getdb():
     k=0
@@ -59,21 +62,21 @@ def getdb():
     db = sub[k:j].read('uint:16')/100
     return str(db)
 
-def getsdur():
-    if ffps == '59.94p':
+def getsdur2(framemax):
+    if framemax == 59:
         sdur = 1001.0/60000.0
-    elif ffps == '29.97p':
+    elif framemax == 29:
         sdur = 1001.0/30000.0
-    elif ffps == '50p':
+    elif framemax == 49:
         sdur = 1.0/50.0
-    elif ffps == '25p':
+    elif framemax == 24:
         sdur = 1.0/25.0
-    elif ffps == '24p':
-        sdur = 100.0/24000.0
-    elif ffps == '100p':
+    elif framemax == 23:
+        sdur = 1001.0/24000.0
+    elif framemax == 99:
         sdur = 1.0/100.0
-    elif ffps == '120p':
-        sdur = 1.0/120.0
+    elif framemax == 119:
+        sdur = 1001.0/120000.0
     return sdur
 
 def getpasm():
@@ -105,9 +108,6 @@ if not os.path.exists(args.infile) :
     print ('Error! Given input file name not found! Please check path given in CMD or set in script code!')
     sys.exit()
 
-#F = "C:/Users/ruskugaa/Downloads/C0275.mp4"
-#F = "D:/Temp/rtmd/C0002.MP4"
-#F = "D:/Temp/rtmd/C0078.MP4"
 F = args.infile
 
 print 'Opened file ' + F
@@ -117,26 +117,51 @@ s = ConstBitStream(filename=F)
 ### NRT_Acquire START ###
 filesize = os.path.getsize(F)
 
+sampl_check = s.find('0x001c0100', bytealigned=True)
+if len(sampl_check) != 0:
+    sampl_string = '0x001c0100'
+    samples = s.findall(sampl_string, bytealigned=True)
+else:
+    print 'No proper rtmd tags detected. Probably you have non-XAVC S file or file from older camera (ex. ILCE-5100). Exiting.'
+    exit()
+
+
+
 all_the_data = open(F,'r+')
 offset = (filesize/mmap.ALLOCATIONGRANULARITY-1)* mmap.ALLOCATIONGRANULARITY
 m = mmap.mmap(all_the_data.fileno(),0,access=mmap.ACCESS_READ, offset = offset)
 
-pattern = 'Duration value="(.*?)".*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+pattern = 'Duration value="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
 rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
-result = rx.findall(m)
+duration = rx.findall(m)[0]
 
-for duration,ffps, vendor, modelname in result:
-    print 'Model Name:', vendor, modelname
-    print 'Video duration (frames):',duration
-    print 'Video framerate:',ffps
+pattern = 'Device manufacturer="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
+vendor = rx.findall(m)[0]
+
+pattern = 'modelName="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
+modelname = rx.findall(m)[0]
+
+framemax = -1
+for i in samples :
+    frame = s[i+17*8:i+18*8].read('uint:8')
+    if frame > framemax :
+        framemax = frame
+    else :
+
+        break
+        
+sdur = getsdur2(framemax)
+
+print 'Model Name:', vendor, modelname
+print 'Video duration (frames):',duration
+#print ffps
+
 all_the_data.close()
 ### NRT_Acquire END ###
-    
 
-samples = s.findall('0x001c0100', bytealigned=True) 
 print 'Processing...'
-
-sdur = getsdur()
 
 ssec = 0
 k=0
@@ -146,7 +171,7 @@ with open(F[:-3]+'srt', 'w') as f:
     for c in range(int(duration)):
         s = ConstBitStream(filename=F)
         #Debug# print s
-        samples = (s.find('0x001c0100', start = offset, bytealigned=True))
+        samples = (s.find(sampl_string, start = offset, bytealigned=True))
         #Debug# print 'Samples:', len(samples)
         #Debug# if samples [0]
         i = samples[0]
@@ -160,7 +185,7 @@ with open(F[:-3]+'srt', 'w') as f:
         iso=getiso()
         db = getdb()
         ae=getpasm()
-        if sub[54*8:55*8] != '0x06': 
+        if 'ILCE' or 'FDR-AX' in modelname: 
             dist=getdist()
         else: dist = 'N/A'
         c+=1
@@ -170,7 +195,7 @@ with open(F[:-3]+'srt', 'w') as f:
         f.write (str(c) +'\n')
         f.write (str(sampletime(ssec,sdur)) + '\n')
         
-        f.write ('FPS: ' + ffps + '  Frame: ' + str(c) + '/' + duration + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
+        f.write ('Frame: ' + str(c) + '/' + duration + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
         f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
         f.write ('Focus Distance: ' + dist + '\n')
         f.write ('\n')
@@ -184,5 +209,3 @@ with open(F[:-3]+'srt', 'w') as f:
     print 'Last frame processed:', c
     #Debug# print("type error: " + str(e))
 print 'Success! SRT file created: ' + F[:-3]+'srt'
-
-#Debug# gc.collect()
