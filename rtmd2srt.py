@@ -163,7 +163,7 @@ s = ConstBitStream(filename=F)
 
 if s[:96] != '0x0000001C6674797058415643' :
     print 'No XAVC type tag detected. Please user original XAVC MP4 file. Exiting.'
-    exit()
+    sys.exit()
 
 ### NRT_Acquire START ###
 filesize = os.path.getsize(F)
@@ -184,7 +184,7 @@ if len(sampl_check) != 0:
     """
 else:
     print 'No mdat tags detected. Probably you have corrupted XAVC file. Exiting.'
-    exit()
+    sys.exit()
 
 
 
