@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 import os
 import re
@@ -10,80 +11,125 @@ from datetime import datetime, timedelta
 import argparse
 
 parser = argparse.ArgumentParser(description='Extracts realtime meta-data from XAVC files and put to SRT (subtitle) file',)
-parser.add_argument('infile',help='First file or filepath should be the source')
+parser.add_argument('infile',help='Put SOURCE XAVC S file path (ends with .MP4')
 args = parser.parse_args()
 
+'''
+GENERAL RTMD tags FORMAT
+
+TAG ID (2 bytes)
+ver? (1 byte)
+tag length (1 byte)
+TAG value (length = tag length)
+'''
+
 def getfn():
-    k=0
-    j=0
-    k= 8*52
-    j = k + 8*2
-    fn = sub[k:j].read('uint:16')
+#    k=0
+#    j=0
+#    k= 8*52
+    k=sub.find('0x8000',bytealigned = True)
+    if len(k) == 0 :
+        fn = 'N/A'
+#        print sub
+        return fn
+#    print k
+#    j = k + 8*2
+    sub.pos+=32
+#    fn = sub[k:j].read('uint:16')
+    fn = sub.read(16).uint
     fn= 2**((1-float(fn)/65536)*8)
     fn=round(fn,1)
     return str(fn)
 
+
+def getdist():
+#DIST TAG = 0x8001
+    k=sub.find('0x8001',bytealigned = True)
+    if len(k) == 0 :
+        dist = 'N/A'
+        return dist
+    sub.pos+=32
+    diste = sub.read('int:4')
+    distm = sub.read('uint:12')
+    dist = float(distm*(10**diste))
+    if dist >= 65500 :
+        dist = '∞'
+    else: dist = str(dist)+'m'
+    return dist
+    
+
 def getss():
-    k=0
-    j=0
-    k= 8*109 + delta1
-    j= k + 4*8
-    ss1 = sub[k:j].read('int:32')
-    ss2 = sub[k+4*8:j+4*8].read('int:32')
+#SHUTTER SPEED TAG = 0x8109, 2 parts by 4 bytes
+#    k=0
+#    j=0
+#    k= 8*109 + delta1
+    k = sub.find('0x8109',bytealigned = True)
+    if len(k) == 0 :
+        ss = 'N/A'
+        return ss
+#    j= k + 4*8
+    sub.pos+=32
+#    ss1 = sub[k:j].read('int:32')
+#    ss2 = sub[k+4*8:j+4*8].read('int:32')
+    ss1 = sub.read(32).uint
+    ss2 = sub.read(32).uint
     ss = str(ss1) + '/' +str(ss2)
     return str(ss)
 
 def getiso():
-    k=0
-    j=0
-    k= 8*127 + delta1
-    j= k + 2*8
-    iso = sub[k:j].read('uint:16')
+#ISO TAG = 0x810b, 
+#    k=0
+#    j=0
+#    k= 8*127 + delta1
+    k = sub.find('0x8115',bytealigned = True)
+    if len(k) == 0:
+        k = sub.find('0x810b',bytealigned = True)
+    if len(k) == 0:
+        iso = 'N/A'
+        return iso
+#    j= k + 2*8
+    sub.pos+=32
+#    iso = sub[k:j].read('uint:16')
+    iso = sub.read(16).uint
     return str(iso)
 
-def getdist():
-    k=0
-    j=0
-    k= 8*52 + delta1
-    j= k + 2*8
-    diste = sub[k:j].read('int:4')
-    distm = sub[k+4:j].read('uint:12')
-    dist = float(distm*(10**diste))
-    if dist >= 65500 :
-        dist = 'Inf.'
-    else: dist = str(dist)+'m'
-    return dist
-
 def getdb():
-    k=0
-    j=0
-    k= 8*121 + delta1
-    j= k + 2*8
-    db = sub[k:j].read('uint:16')/100
+#    k=0
+#    j=0
+#    k= 8*121 + delta1
+    k = sub.find('0x810a',bytealigned = True)
+    if len(k) == 0:
+        db = 'N/A'
+        return db
+    sub.pos+=32
+#    j= k + 2*8
+#    db = sub[k:j].read('uint:16')/100
+    db = sub.read(16).uint/100
     return str(db)
 
-def getsdur2(framemax):
-    if framemax == 59:
-        sdur = 1001.0/60000.0
-    elif framemax == 29:
-        sdur = 1001.0/30000.0
-    elif framemax == 49:
-        sdur = 1.0/50.0
-    elif framemax == 24:
-        sdur = 1.0/25.0
-    elif framemax == 23:
-        sdur = 1001.0/24000.0
-    elif framemax == 99:
-        sdur = 1.0/100.0
-    elif framemax == 119:
-        sdur = 1001.0/120000.0
-    #print 'Debug: Framemax =',framemax
-    return sdur
+def getdz():
+#    k=0
+#    j=0
+#    k= 8*121 + delta1
+    k = sub.find('0x810c',bytealigned = True)
+    if len(k) == 0:
+        dz = 'N/A'
+        return dz
+    sub.pos+=32
+#    j= k + 2*8
+#    db = sub[k:j].read('uint:16')/100
+    dz = float(sub.read(16).uint)/100
+    return str(dz)
 
 def getpasm():
-    k = 78*8+delta1
+    #k = 78*8+delta1
+    k = sub.find('0x060E2B340401010B0510010101',bytealigned = True)
+    if len(k) == 0:
+        ae = 'N/A'
+        return ae
+    k = k[0]
     j = k+16*8
-    if sub[k:j] == '0x060E2B340401010B0510010101010000' : ae = 'Exp. mode: M '
+    if sub[k:j] ==   '0x060E2B340401010B0510010101010000' : ae = 'Exp. mode: M '
     elif sub[k:j] == '0x060E2B340401010B0510010101020000' : ae = 'Exp. mode: AUTO'
     elif sub[k:j] == '0x060E2B340401010B0510010101030000' : ae = 'Exp. mode: GAIN'
     elif sub[k:j] == '0x060E2B340401010B0510010101040000' : ae = 'Exp. mode: A'
@@ -115,15 +161,29 @@ print 'Opened file ' + F
 print 'Analyzing...'
 s = ConstBitStream(filename=F)
 
+if s[:96] != '0x0000001C6674797058415643' :
+    print 'No XAVC type tag detected. Please user original XAVC MP4 file. Exiting.'
+    exit()
+
 ### NRT_Acquire START ###
 filesize = os.path.getsize(F)
 
-sampl_check = s.find('0x001c0100', bytealigned=True)
+sampl_check = s.find('0x6D64617400000000', bytealigned=True)
 if len(sampl_check) != 0:
-    sampl_string = '0x001c0100'
+    #sampl_string = '0x001c010000'
+    s.bytepos+=16
+    sampl_string = s.read(48)
     samples = s.findall(sampl_string, bytealigned=True)
+    """
+    elif len(sampl_check) == 0 :   
+        sampl_check = s.find('0x0008010000', bytealigned=True)
+        if len(sampl_check) != 0:
+            #sampl_string = '0x0008010000'
+            sampl_string = s.read(48)
+            samples = s.findall(sampl_string, bytealigned=True)
+    """
 else:
-    print 'No proper rtmd tags detected. Probably you have non-XAVCS file or XAVCS file from earlier camera (ex. ILCE-5100). Exiting.'
+    print 'No mdat tags detected. Probably you have corrupted XAVC file. Exiting.'
     exit()
 
 
@@ -144,16 +204,36 @@ pattern = 'modelName="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.
 rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
 modelname = rx.findall(m)[0]
 
-framemax = -1
-for i in samples :
-    frame = s[i+17*8:i+18*8].read('uint:8')
-    if frame > framemax :
-        framemax = frame
-    else :
+s = ConstBitStream(filename=F, offset = offset*8) #,length=(mmap.ALLOCATIONGRANULARITY),offset = offset
+# Get mdhd
+pos = s.find('0x6D646864',bytealigned=True)
+s.read(32).hex
+v = s.read(8).uint
+s.read(24).hex
+if v == 0:
+    s.read(32).uint
+else: s.read(64).uint
+if v == 0:
+    s.read(32).uint
+else: s.read(64).uint
+ts = s.read(32).uint #i.e. 30000 
 
-        break
-        
-sdur = getsdur2(framemax)
+if v == 0:
+    tdur = s.read(32).uint
+else: tdur = s.read(64).uint
+
+#Get stts - 0x73747473
+pos = s.find('0x73747473',bytealigned=True)
+s.read(32).hex
+v = s.read(8).uint
+s.read(24).uint
+s.read(32).uint
+s.read(32).uint
+sd = s.read(32).uint
+
+sdur = float(sd)/float(ts) #each frame duration
+
+
 
 print 'Model Name:', vendor, modelname
 print 'Video duration (frames):',duration
@@ -172,25 +252,26 @@ with open(F[:-3]+'srt', 'w') as f:
     for c in range(int(duration)):
         s = ConstBitStream(filename=F)
         #Debug# print s
-        samples = (s.find(sampl_string, start = offset, bytealigned=True))
+        samples = (s.find(sampl_string[:-8], start = offset, bytealigned=True))
         #Debug# print 'Samples:', len(samples)
         #Debug# if samples [0]
         i = samples[0]
         #Debug# print i
         sub = s[i:(i+1024*8)]
-        if sub[54*8:55*8] != '0x06' and sub[134*8:135*8] !='0x06':
-            delta1 = 48
-
+#        if sub[54*8:55*8] != '0x06' and sub[134*8:135*8] !='0x06':
+#           delta1 = 48
+#        print sub
         fn = getfn()
+        if 'ILCE' in modelname or 'FDR-AX7' in modelname: 
+            dist=getdist()
+        else: dist = 'N/A'
         ss=getss()
         iso=getiso()
         db = getdb()
+        dz = getdz()
         ae=getpasm()
-        if 'ILCE' in modelname or 'FDR-AX' in modelname: 
-            dist=getdist()
-        else: dist = 'N/A'
+
         c+=1
-        
         #Debug# print c
 
         f.write (str(c) +'\n')
@@ -198,7 +279,7 @@ with open(F[:-3]+'srt', 'w') as f:
         
         f.write ('Frame: ' + str(c) + '/' + duration + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
         f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
-        f.write ('Focus Distance: ' + dist + '\n')
+        f.write ('D.zoom: '+dz+'x '+'Focus Distance: ' + dist + '\n')
         f.write ('\n')
         ssec=ssec+sdur
         offset = s.pos + 1024*8 - 8
