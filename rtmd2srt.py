@@ -27,6 +27,10 @@ RDD 18 tags from Mediainfo MXF parser (https://github.com/MediaArea/MediaInfoLib
     060E2B34040101010401010101020000 = rec.709
     060E2B34040101010401010101030000 = SMPTE ST 240
     06.0E.2B.34.04.01.01.vv.0E.xx.xx.xx.xx.xx.xx.xx = custom
+
+0x3219 = CaptureColorPrimaries (rec709, S-Logx, Rec2100-HLG, e.t.c.)
+0x321A = Coding Equations = (rec.709, rec2020nc, e.t.c.)
+
 0x8000: return "IrisFNumber";
 0x8001: return "FocusPositionFromImagePlane";
 0x8002: return "FocusPositionFromFrontLensVertex";
@@ -64,12 +68,12 @@ RDD 18 tags from Mediainfo MXF parser (https://github.com/MediaArea/MediaInfoLib
 0x8116: return "GammaForCDL";
 0x8117: return "ASC_CDL_V12";
 0x8118: return "ColorMatrix";
-0xE000: UDAM ID (10 bytes)
+0xE000: UDAM ID (10 bytes) ???
 
 unkn tags
 E3 01 - ISO?
 
-E3 04 - 8 bytes - date and time in YY-YY-MM-DD-HH-MM-SS format
+E3 04 - 8 bytes - Current record date and time in YY-YY-MM-DD-HH-MM-SS format
 
 
 '''
@@ -213,17 +217,29 @@ def getge():
         return ge
     sub.pos+=32
     ge = sub.read(16*8).hex
-    if ge ==   '060e2b34040101010401010101020000' : ge = 'PP1/PP3/PP4: rec709 / rec709'
+    if ge ==   '060e2b34040101010401010101020000' : ge = 'Gamma: rec709'
     elif ge == '060e2b34040101010401010101030000' : ge = 'Gamma: SMPTE ST 240M'
-    elif ge == '060e2b340401010d0401010101080000' : ge = 'PP Off: rec709-xvycc / rec709'
-    elif ge == '060e2b34040101060e06040101010602' : ge = 'PP2: Still / Still'
-    elif ge == '060e2b34040101060e06040101010301' : ge = 'PP5: Cine1 / Cinema'
-    elif ge == '060e2b34040101060e06040101010302' : ge = 'PP6: Cine2 / Cinema'
-    elif ge == '060e2b34040101060e06040101010508' : ge = 'PP7: S-Log2 / S-Gamut'
-    elif ge == '060e2b34040101060e06040101010605' : ge = 'PP8: S-Log3 / S-Gamut3.Cine'
-    elif ge == '060e2b34040101060e06040101010604' : ge = 'PP9: S-Log3 / S-Gamut3'
+    elif ge == '060e2b340401010d0401010101080000' : ge = 'rec709-xvycc'
+    elif ge == '060e2b34040101060e06040101010602' : ge = 'Still'
+    elif ge == '060e2b34040101060e06040101010301' : ge = 'Cine1'
+    elif ge == '060e2b34040101060e06040101010302' : ge = 'Cine2'
+    elif ge == '060e2b34040101060e06040101010303' : ge = 'Cine3'
+    elif ge == '060e2b34040101060e06040101010304' : ge = 'Cine4'
+    elif ge == '060e2b34040101060e06040101010508' : ge = 'S-Log2'
+    elif ge == '060e2b34040101060e06040101010605' : ge = 'S-Log3-Cine'
+    elif ge == '060e2b34040101060e06040101010604' : ge = 'S-Log3'
+    elif ge == '060e2b340401010d04010101010b0000' : ge = 'Rec2100-HLG'
     else :
         ge = 'Gamma: Unkn'
+
+    sub.pos+=32
+    cp = sub.read(16*8).hex
+    if cp == '060e2b34040101060401010103030000' : ge = ge + '/rec709'
+    elif cp == '060e2b34040101060e06040101030103' : ge = ge + '/S-Gamut'
+    elif cp == '060e2b34040101060e06040101030104' : ge = ge + '/S-Gamut3'
+    elif cp == '060e2b34040101060e06040101030105' : ge = ge + '/S-Gamut3.Cine'
+    elif cp == '060e2b340401010d0401010103040000' : ge = ge + '/rec2020'
+
     return ge
 
 def sampletime (ssec,sdur):
@@ -338,7 +354,7 @@ with open(F[:-3]+'srt', 'w') as f:
         ss=  getss()
         iso= getiso()
         db = getdb()
-        #dz = getdz()
+        dz = getdz()
         ae=  getpasm()
         wb=  getwbmode()
         af=  getaf()
