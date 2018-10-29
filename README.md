@@ -11,7 +11,9 @@ Meta-data supported:
 - Aperture value (F-number)
 - Shutter speed
 - Focusing distance (for ILCE models, FDR-AX700; N/A for DSC-RX models)
+- Focusing mode (Manual, Autofocus)
 - Exposure mode (Auto/A/S/M)
+- Capture Gamma / ColorSpace
 
 Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 argument (full video file path or just file name if in the same folder)
 Example: **x_rtmd2srt.exe D:\Video\C0035.MP4**
