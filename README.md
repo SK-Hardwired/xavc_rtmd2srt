@@ -14,7 +14,7 @@ Meta-data supported:
 - Exposure mode (Auto/A/S/M)
 
 Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 argument (full video file path or just file name if in the same folder)
-Example: **xavcs_rtmd_bin_2.exe D:\Video\C0035.MP4**
+Example: **x_rtmd2srt.exe D:\Video\C0035.MP4**
 
 Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-6500 videos. Limited compatibility with ActionCam videos - works well if no GPS data captured.
 
