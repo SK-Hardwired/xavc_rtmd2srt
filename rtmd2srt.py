@@ -213,11 +213,15 @@ def getge():
         return ge
     sub.pos+=32
     ge = sub.read(16*8).hex
-    if ge ==   '060E2B34040101010401010101020000' : ge = 'Gamma: rec.709'
-    elif ge == '060E2B34040101010401010101030000' : ge = 'Gamma: SMPTE ST 240M'
-#    elif ge == '060e2b340401010b0510010101030000' : ge = 'Exp. mode: GAIN'
-#    elif ge == '060e2b340401010b0510010101040000' : ge = 'Exp. mode: A'
-#    elif ge == '060e2b340401010b0510010101050000' : ge = 'Exp. mode: S'
+    if ge ==   '060e2b34040101010401010101020000' : ge = 'PP1/PP3/PP4: rec709 / rec709'
+    elif ge == '060e2b34040101010401010101030000' : ge = 'Gamma: SMPTE ST 240M'
+    elif ge == '060e2b340401010d0401010101080000' : ge = 'PP Off: rec709-xvycc / rec709'
+    elif ge == '060e2b34040101060e06040101010602' : ge = 'PP2: Still / Still'
+    elif ge == '060e2b34040101060e06040101010301' : ge = 'PP5: Cine1 / Cinema'
+    elif ge == '060e2b34040101060e06040101010302' : ge = 'PP6: Cine2 / Cinema'
+    elif ge == '060e2b34040101060e06040101010508' : ge = 'PP7: S-Log2 / S-Gamut'
+    elif ge == '060e2b34040101060e06040101010605' : ge = 'PP8: S-Log3 / S-Gamut3.Cine'
+    elif ge == '060e2b34040101060e06040101010604' : ge = 'PP9: S-Log3 / S-Gamut3'
     else :
         ge = 'Gamma: Unkn'
     return ge
@@ -327,7 +331,7 @@ with open(F[:-3]+'srt', 'w') as f:
         offset = samples[0] + 1024*8
         i = samples[0]
         sub = s[i:(i+1024*8)]
-        if '0x810a' not in sub and '0x9109' not in sub:
+        if '0x060e2b340401010b05100101' not in sub :
             continue
         fn = getfn()
         dist=getdist()
@@ -339,7 +343,7 @@ with open(F[:-3]+'srt', 'w') as f:
         wb=  getwbmode()
         af=  getaf()
         time = gettime()
-#        ge = getge()
+        ge = getge()
 
         c+=1
 
@@ -349,7 +353,9 @@ with open(F[:-3]+'srt', 'w') as f:
         f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
         f.write ('WB mode: '+ wb + '  |  AF mode: ' + af + '\n')
         f.write ('Focus Distance: ' + dist  + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
-        f.write (time + '\n')
+        if ge != 'N/A' :
+            f.write (ge  + '\n')
+        #f.write (time + '\n')
         f.write ('\n')
         ssec=ssec+sdur
 
