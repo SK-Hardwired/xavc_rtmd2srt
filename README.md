@@ -1,21 +1,31 @@
 # XAVC S video real-time meta-data parser
 Extract real time meta-data from Sony XAVC video and render to srt subtitle file
 
-Besides of non-realtime metadata which MediaInfo or Exiftool can see, Sony cameras record many other real-time meta-data for every frame such as it's ISO, F number, shutter speed, AE mode and even focus distance.
+Besides of non-realtime metadata which MediaInfo or Exiftool can see, Sony cameras record many other real-time meta-data for every frame such as it's ISO, F number, shutter speed, AE mode and even focus distance in special Acquisition Meta-data section.
 
-This tool tries to extract these from XAVC S (MP4) file and create SRT subtitle file near the video file. When opened in VLC or whatever, it can be viewed and you can see the settings of camera for every frame of video in real time.
+Looks like this feature partially inherited by XAVC S from professional Sony XAVC codec and MXF container. 
+
+This tool tries to extract this meta-data from XAVC S (MP4) file and create SRT subtitle file near the video file. When opened in VLC or whatever, it can be viewed and you can see the settings of camera for every frame of video in real time.
 
 Meta-data supported:
 - ISO (N/A for most of camcorders and older ILCE/RX cameras)
 - Gain (dB)
 - Aperture value (F-number)
 - Shutter speed
-- Focusing distance (for ILCE models, FDR-AX700; N/A for DSC-RX models)
+- Focusing distance: at what distance lens focused (for ILCE models, FDR-AX700; N/A for DSC-RX models)
 - Focusing mode (Manual, Autofocus)
 - Exposure mode (Auto/A/S/M)
 - Capture Gamma / ColorSpace (looks like it is fixed on first frame; meta-data not changed if Picture Profile changed on camera during recording)
 - recording date and time in YYYY/MM/DD HH/MM/SS format as it is set in camera settings (output disabled yet)
 - timecode (N/A for models w/o timecode fieature; output not implemented yet)
+
+Meta-data not supported (as no any existing consumer camera models record it):
+- lens focal length, zoom position
+- detailed autofocus method (spot/zone/multi e.t.c.)
+- white balance value in Kelvin (probably this tag recorded in RAW-cabable video/cinema cameras, e.g. CineAlta)
+- sensor readout mode and parameters (x,y resolution, dynamic range)
+- built-in camera/lens color/ND filters value
+- gamma curve/knee formulas/params (as these are also important for very pro video/cinema cameras)
 
 TO DO:
 - implement command line arguments parameters to customize what meta-data to output
