@@ -28,6 +28,7 @@ Meta-data not supported (as no any existing consumer camera models record it):
 - gamma curve/knee formulas/params (as these are also important for very pro video/cinema cameras)
 
 TO DO:
+- implement GPS extraction
 - implement command line arguments parameters to customize what meta-data to output
 
 Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 argument (full video file path or just file name if in the same folder)
