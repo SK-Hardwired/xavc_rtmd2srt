@@ -1,5 +1,5 @@
 # XAVC S video real-time meta-data parser
-Extract real time meta-data from Sony XAVC video and render to srt subtitle file
+Extract realtime meta-data (i.e. per-frame) from Sony XAVC video and render to srt subtitle file
 
 Besides of non-realtime metadata which MediaInfo or Exiftool can see, Sony cameras record many other real-time meta-data for every frame such as it's ISO, F number, shutter speed, AE mode and even focus distance in special Acquisition Meta-data section.
 
