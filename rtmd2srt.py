@@ -3,16 +3,23 @@ import sys
 import os
 import re
 import mmap
+import subprocess
 #import numpy as np
-from bitstring import  ConstBitStream #BitArray, BitStream, pack, Bits,
+from bitstring import  ConstBitStream, BitArray #, BitStream, pack, Bits,
 from datetime import datetime, timedelta
 #import gc
 
 import argparse
 
 parser = argparse.ArgumentParser(description='Extracts realtime meta-data from XAVC files and put to SRT (subtitle) file',)
+
 parser.add_argument('infile',help='Put SOURCE XAVC S file path (ends with .MP4')
+parser.add_argument('-muxmkv', action='store_true', help='Key to mux meta-data srt stream into new MKV file with ffmpeg')
+parser.add_argument('-sidecar', action='store_true', help='Key to mux meta-data srt stream into new MKV file with ffmpeg')
+
 args = parser.parse_args()
+
+print args
 
 '''
 GENERAL RTMD tags FORMAT
@@ -74,6 +81,20 @@ unkn tags
 E3 01 - ISO?
 
 E3 04 - 8 bytes - Current record date and time in YY-YY-MM-DD-HH-MM-SS format
+
+GPS tags
+
+0x8500 - 4 bytes - gps version - 2.2.0.0 (02020000)
+0x8501 - 1 byte - LatitudeRef - N (4e)
+0x8502 - 18h bytes - Latitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
+0x8503 - 1 byte - LongtitudeRef - E (45)
+0x8504 - 18h bytes - Longtitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
+0x8507 - 18h bytes - Timestamp - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
+0x8509 - 1 byte - STATUS - 'A' (if GPS not acquired, = 'V')
+0x850a - 1 byte - MeasureMode - '2'
+0x8512 - 6 bytes - MapDatum  - 57 47 53 2D 38 34 (WGS-84)
+0x851d - 0a bytes - string (2018:10:30)
+
 
 
 '''
@@ -242,6 +263,56 @@ def getge():
 
     return ge
 
+def getgps():
+    k = sub.find('0x8512',bytealigned = True)
+    if len(k) == 0:
+        gps = 'N/A'
+        return gps
+    sub.pos+=32
+    latref = BitArray(sub.read(8))
+    latref = latref.tobytes().decode('utf-8')
+    sub.pos+=32
+    l1 = sub.read(4*8).uint
+    l2 = sub.read(4*8).uint
+    l3 = sub.read(4*8).uint
+    l4 = sub.read(4*8).uint
+    l5 = sub.read(4*8).uint
+    l6 = sub.read(4*8).uint
+
+    lat = str(l1/l2) + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+
+    sub.pos+=32
+    lonref = BitArray(sub.read(8))
+    lonref = lonref.tobytes().decode('utf-8')
+
+    #k = sub.find('0x8504',bytealigned = True)
+    #if len(k) == 0:
+    #    gps = 'N/A'
+    #    return ae
+    sub.pos+=32
+    l1 = sub.read(4*8).uint
+    l2 = sub.read(4*8).uint
+    l3 = sub.read(4*8).uint
+    l4 = sub.read(4*8).uint
+    l5 = sub.read(4*8).uint
+    l6 = sub.read(4*8).uint
+
+    lon = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+
+    sub.pos+=32
+    l1 = sub.read(4*8).uint
+    l2 = sub.read(4*8).uint
+    l3 = sub.read(4*8).uint
+    l4 = sub.read(4*8).uint
+    l5 = sub.read(4*8).uint
+    l6 = sub.read(4*8).uint
+
+    gpsts = str(l1/l2)  + ':' + str(l3/l4) + ":" + str(float(l5)/float(l6))
+
+    gps = lat + str(latref) + ' ' + lon + str(lonref)# + ' ' + gpsts
+
+    return gps
+
 def sampletime (ssec,sdur):
     sec = timedelta(seconds=float(ssec))
     delta = timedelta(seconds=float(sdur))
@@ -251,8 +322,34 @@ def sampletime (ssec,sdur):
     d=d.replace('.',',')
     de=str(de).split(' ',1)[1]
     de=de.replace('.',',')
+    if len(d) == 8: d = d + ',000000'
+    if len(de) == 8: de = de + ',000000'
     result =  d[:-3] + ' --> ' + de[:-3]
     return result
+
+def opt_sidecar():
+    print 'Extracting sidecar...'
+    pos = s.find('0x3C3F786D6C',bytealigned=True)
+    if pos == ():
+        print 'Error: No embedded Non-Realtime Metadata XML found!'
+        return
+    endpos = s.find('0x3C2F4E6F6E5265616C54696D654D6574613E',bytealigned=True)
+    sidecar = s[pos[0]:(endpos[0]+18*8)]
+    with open(F[:-3]+'XML', 'wb') as f:
+        sidecar.tofile(f)
+    print 'Sidecar XML created: ' + (F[:-3]+'XML')
+
+def opt_muxmkv():
+    if os.path.isfile('ffmpeg.exe') == False :
+        print ''
+        print 'Error: No ffmpeg.exe found. MuxMKV operation skipped.'
+        exit()
+    print 'Muxing new file with built-in subtitle'
+    f = (F[:-3]+'srt')
+    fout = (F[:-4]+'_sub.mkv')
+    subprocess.call(['ffmpeg','-i',F,'-i',f,'-c','copy','-c:s','srt','-hide_banner','-y',fout]) #ccopy,cs,
+
+#Main Program###
 
 if not os.path.exists(args.infile) :
     print ('Error! Given input file name not found! Please check path given in CMD or set in script code!')
@@ -261,9 +358,9 @@ if not os.path.exists(args.infile) :
 F = args.infile
 
 print 'Opened file ' + F
+
 print 'Analyzing...'
 s = ConstBitStream(filename=F)
-
 if s[:96] != '0x0000001C6674797058415643' :
     print 'No XAVC type tag detected. Please user original XAVC MP4 file. Exiting.'
     sys.exit()
@@ -271,16 +368,15 @@ if s[:96] != '0x0000001C6674797058415643' :
 ### NRT_Acquire START ###
 filesize = os.path.getsize(F)
 
-sampl_check = s.find('0x6D64617400000000', bytealigned=True)
+sampl_check = s.find('0x6D646174000000', bytealigned=True)
 if len(sampl_check) != 0:
-    s.bytepos+=12
+    s.bytepos+=13
     sampl_string = s.read(4*8)
-
 else:
     print 'No mdat tags detected. Probably you have corrupted XAVC file. Exiting.'
     sys.exit()
 
-all_the_data = open(F,'r+')
+all_the_data = open(F,'rb')
 offset = (filesize/mmap.ALLOCATIONGRANULARITY-1)* mmap.ALLOCATIONGRANULARITY
 m = mmap.mmap(all_the_data.fileno(),0,access=mmap.ACCESS_READ, offset = offset)
 
@@ -296,6 +392,8 @@ pattern = 'modelName="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.
 rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
 modelname = rx.findall(m)[0]
 
+
+
 s = ConstBitStream(filename=F, offset = offset*8) #,length=(mmap.ALLOCATIONGRANULARITY),offset = offset
 # Get mdhd
 pos = s.rfind('0x6D646864',bytealigned=True)
@@ -309,7 +407,6 @@ if v == 0:
     s.read(32).uint
 else: s.read(64).uint
 ts = s.read(32).uint #i.e. 30000
-
 
 if v == 0:
     tdur = s.read(32).uint
@@ -329,6 +426,9 @@ sdur = float(sd)/float(ts) #each frame duration
 print 'Model Name:', vendor, modelname
 print 'Video duration (frames):',duration
 print 'Framerate:', float(ts)/float(sd)
+
+if args.sidecar == True:
+    opt_sidecar()
 
 all_the_data.close()
 ### NRT_Acquire END ###
@@ -360,6 +460,7 @@ with open(F[:-3]+'srt', 'w') as f:
         af=  getaf()
         time = gettime()
         ge = getge()
+        #gps = getgps()
 
         c+=1
 
@@ -368,7 +469,10 @@ with open(F[:-3]+'srt', 'w') as f:
         f.write ('Frame: ' + str(c) + '/' + duration + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
         f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
         f.write ('WB mode: '+ wb + '  |  AF mode: ' + af + '\n')
-        f.write ('Focus Distance: ' + dist  + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
+        if dist != 'N/A' :
+            f.write ('Focus Distance: ' + dist  + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
+        #if gps != 'N/A' :
+        #    f.write ('GPS: ' + gps + '\n')
         if ge != 'N/A' :
             f.write (ge  + '\n')
         #f.write (time + '\n')
@@ -377,3 +481,6 @@ with open(F[:-3]+'srt', 'w') as f:
 
     print 'Last frame processed:', c
 print 'Success! SRT file created: ' + F[:-3]+'srt'
+
+if args.muxmkv:
+    opt_muxmkv()
