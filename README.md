@@ -3,7 +3,7 @@ Extract realtime meta-data (i.e. per-frame) from Sony XAVC video and render to s
 
 Besides of non-realtime metadata which MediaInfo or Exiftool can see, Sony cameras record many other real-time meta-data for every frame such as it's ISO, F number, shutter speed, AE mode and even focus distance in special Acquisition Meta-data section.
 
-Looks like this feature partially inherited by XAVC S from professional Sony XAVC codec and MXF container. 
+Looks like this feature partially inherited by XAVC S from professional Sony XAVC codec and MXF container.
 
 This tool tries to extract this meta-data from XAVC S (MP4) file and create SRT subtitle file near the video file. When opened in VLC or whatever, it can be viewed and you can see the settings of camera for every frame of video in real time.
 
@@ -29,7 +29,6 @@ Meta-data not supported (as no any existing consumer camera models record it):
 
 TO DO:
 - implement GPS extraction
-- implement command line arguments parameters to customize what meta-data to output
 
 Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 argument (full video file path or just file name if in the same folder)
 Example: **x_rtmd2srt.exe D:\Video\C0035.MP4**

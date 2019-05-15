@@ -2,6 +2,8 @@
 import sys
 import os
 import re
+import msvcrt
+import io
 import mmap
 import subprocess
 #import numpy as np
@@ -19,7 +21,7 @@ parser.add_argument('-sidecar', action='store_true', help='Key to mux meta-data 
 
 args = parser.parse_args()
 
-print args
+print (args)
 
 '''
 GENERAL RTMD tags FORMAT
@@ -78,8 +80,10 @@ RDD 18 tags from Mediainfo MXF parser (https://github.com/MediaArea/MediaInfoLib
 0xE000: UDAM ID (10 bytes) ???
 
 unkn tags
-E3 01 - ISO?
-
+E3 00 - 1 byte - in XAVC S always = 00
+E3 01 - 4 bytes - ISO?
+E3 02 - 1 byte - in XAVC S always = 01
+E3 03 - 1 byte - in XAVC S always = FF (255)
 E3 04 - 8 bytes - Current record date and time in YY-YY-MM-DD-HH-MM-SS format
 
 GPS tags
@@ -121,8 +125,9 @@ def getdist():
     diste = sub.read('int:4')
     distm = sub.read('uint:12')
     dist = float(distm*(10**diste))
+    dist = round(dist,4)
     if dist >= 65500 :
-        dist = '∞'
+        dist = 'Inf.'
     else: dist = str(dist)+'m'
     return dist
 
@@ -328,23 +333,23 @@ def sampletime (ssec,sdur):
     return result
 
 def opt_sidecar():
-    print 'Extracting sidecar...'
+    print ('Extracting sidecar...')
     pos = s.find('0x3C3F786D6C',bytealigned=True)
     if pos == ():
-        print 'Error: No embedded Non-Realtime Metadata XML found!'
+        print ('Error: No embedded Non-Realtime Metadata XML found!')
         return
     endpos = s.find('0x3C2F4E6F6E5265616C54696D654D6574613E',bytealigned=True)
     sidecar = s[pos[0]:(endpos[0]+18*8)]
     with open(F[:-3]+'XML', 'wb') as f:
         sidecar.tofile(f)
-    print 'Sidecar XML created: ' + (F[:-3]+'XML')
+    print ('Sidecar XML created: ' + (F[:-3]+'XML'))
 
 def opt_muxmkv():
     if os.path.isfile('ffmpeg.exe') == False :
-        print ''
-        print 'Error: No ffmpeg.exe found. MuxMKV operation skipped.'
+        print ('')
+        print ('Error: No ffmpeg.exe found. MuxMKV operation skipped.')
         exit()
-    print 'Muxing new file with built-in subtitle'
+    print ('Muxing new file with built-in subtitle')
     f = (F[:-3]+'srt')
     fout = (F[:-4]+'_sub.mkv')
     subprocess.call(['ffmpeg','-i',F,'-i',f,'-c','copy','-c:s','srt','-hide_banner','-y',fout]) #ccopy,cs,
@@ -357,12 +362,12 @@ if not os.path.exists(args.infile) :
 
 F = args.infile
 
-print 'Opened file ' + F
+print ('Opened file ' + F)
 
-print 'Analyzing...'
+print ('Analyzing...')
 s = ConstBitStream(filename=F)
 if s[:96] != '0x0000001C6674797058415643' :
-    print 'No XAVC type tag detected. Please user original XAVC MP4 file. Exiting.'
+    print ('No XAVC type tag detected. Please user original XAVC MP4 file. Exiting.')
     sys.exit()
 
 ### NRT_Acquire START ###
@@ -370,25 +375,26 @@ filesize = os.path.getsize(F)
 
 sampl_check = s.find('0x6D646174000000', bytealigned=True)
 if len(sampl_check) != 0:
-    s.bytepos+=13
-    sampl_string = s.read(4*8)
+    #s.bytepos+=13
+    #sampl_string = s.read(4*8)
+    sampl_string = '0x001C01'
 else:
-    print 'No mdat tags detected. Probably you have corrupted XAVC file. Exiting.'
+    print ('No mdat tags detected. Probably you have corrupted XAVC file. Exiting.')
     sys.exit()
 
 all_the_data = open(F,'rb')
-offset = (filesize/mmap.ALLOCATIONGRANULARITY-1)* mmap.ALLOCATIONGRANULARITY
-m = mmap.mmap(all_the_data.fileno(),0,access=mmap.ACCESS_READ, offset = offset)
+offset = (int(filesize/mmap.ALLOCATIONGRANULARITY)-10)* mmap.ALLOCATIONGRANULARITY
 
-pattern = 'Duration value="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+m = mmap.mmap(all_the_data.fileno(),0,access=mmap.ACCESS_READ, offset = int(offset))
+pattern = b'Duration value="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
 rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
 duration = rx.findall(m)[0]
 
-pattern = 'Device manufacturer="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+pattern = b'Device manufacturer="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
 rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
 vendor = rx.findall(m)[0]
 
-pattern = 'modelName="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+pattern = b'modelName="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
 rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
 modelname = rx.findall(m)[0]
 
@@ -423,9 +429,9 @@ sd = s.read(32).uint
 sdur = float(sd)/float(ts) #each frame duration
 
 
-print 'Model Name:', vendor, modelname
-print 'Video duration (frames):',duration
-print 'Framerate:', float(ts)/float(sd)
+print ('Model Name:', vendor.decode(), modelname.decode())
+print ('Video duration (frames):', duration.decode())
+print ('Framerate:', float(ts)/float(sd))
 
 if args.sidecar == True:
     opt_sidecar()
@@ -433,54 +439,68 @@ if args.sidecar == True:
 all_the_data.close()
 ### NRT_Acquire END ###
 
-print 'Processing...'
+print ('Processing...')
 
 ssec = 0
 k=0
 offset = 0
-with open(F[:-3]+'srt', 'w') as f:
 
-    for c in range(int(duration)):
-        s = ConstBitStream(filename=F)
-        #Debug# print s
-        samples = (s.find(sampl_string, start = offset, bytealigned=True))
-        offset = samples[0] + 1024*8
-        i = samples[0]
-        sub = s[i:(i+1024*8)]
-        if '0x060e2b340401010b05100101' not in sub :
-            continue
-        fn = getfn()
-        dist=getdist()
-        ss=  getss()
-        iso= getiso()
-        db = getdb()
-        dz = getdz()
-        ae=  getpasm()
-        wb=  getwbmode()
-        af=  getaf()
-        time = gettime()
-        ge = getge()
-        #gps = getgps()
+f = io.StringIO()
 
-        c+=1
+for c in range(int(duration)):
+    s = ConstBitStream(filename=F)
+    #Debug# print s
+    samples = (s.find(sampl_string, start = offset, bytealigned=True))
+    offset = samples[0] + 1024*8
+    i = samples[0]
+    sub = s[i:(i+1024*8)]
+    if '0x060e2b340401010b05100101' not in sub :
+        continue
+    fn = getfn()
+    dist=getdist()
+    ss=  getss()
+    iso= getiso()
+    db = getdb()
+    #dz = getdz()
+    ae=  getpasm()
+    wb=  getwbmode()
+    af=  getaf()
+    time = gettime()
+    ge = getge()
+    #gps = getgps()
 
-        f.write (str(c) +'\n')
-        f.write (str(sampletime(ssec,sdur)) + '\n')
-        f.write ('Frame: ' + str(c) + '/' + duration + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
-        f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
-        f.write ('WB mode: '+ wb + '  |  AF mode: ' + af + '\n')
-        if dist != 'N/A' :
-            f.write ('Focus Distance: ' + dist  + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
-        #if gps != 'N/A' :
-        #    f.write ('GPS: ' + gps + '\n')
-        if ge != 'N/A' :
-            f.write (ge  + '\n')
-        #f.write (time + '\n')
-        f.write ('\n')
-        ssec=ssec+sdur
 
-    print 'Last frame processed:', c
-print 'Success! SRT file created: ' + F[:-3]+'srt'
+    c+=1
+
+    f.write (str(c) +'\n')
+    f.write (str(sampletime(ssec,sdur)) + '\n')
+    f.write ('Frame: ' + str(c) + '/' + duration.decode() + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
+    f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
+    f.write ('WB mode: '+ str(wb) + '  |  AF mode: ' + str(af) + '\n')
+    if dist != 'N/A' :
+        f.write ('Focus Distance: ' + dist + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
+    #if gps != 'N/A' :
+    #    f.write ('GPS: ' + gps + '\n')
+    if ge != 'N/A' :
+        f.write (ge  + '\n')
+    #f.write (time + '\n')
+    f.write ('\n')
+    ssec=ssec+sdur
+
+    sys.stdout.write('\rProcessed ' + str(c) + ' frames of ' + duration.decode() + '   (' + str(round(samples[0]/8/1000000))+'MB' + ' of ' + str(round(filesize/1000000)) + 'MB)')
+    sys.stdout.flush()
+
+    if msvcrt.kbhit() and msvcrt.getch() == chr(27).encode():
+        print ('\n \n Aborted! Saving processed data...')
+        break
+
+with open(F[:-3]+'srt', 'w') as outfile:
+    outfile.write(f.getvalue())
+
+f.close()
+
+print ('\nLast frame processed:', c)
+print ('Success! SRT file created: ' + F[:-3]+'srt')
 
 if args.muxmkv:
     opt_muxmkv()
