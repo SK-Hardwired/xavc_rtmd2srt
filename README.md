@@ -38,7 +38,7 @@ Optional arguments:
 
 Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-5100 videos. Limited compatibility with ActionCam videos - works well if no GPS data captured.
 
-Written in: Python 2.7x, no external libraries
+Written in: Python 3.7
 
 Reference:
 [EBU - Tech 3349 EBU Acquisition Technical Metadata Set](https://tech.ebu.ch/docs/tech/tech3349.pdf)
