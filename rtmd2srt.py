@@ -134,7 +134,7 @@ def getdist():
 
 def getss():
 #SHUTTER SPEED TAG = 0x8109, 2 parts by 4 bytes
-    k = sub.find('0x8109',bytealigned = True)
+    k = sub.find('0x810900',bytealigned = True)
     if len(k) == 0 :
         ss = 'N/A'
         return ss
@@ -148,7 +148,7 @@ def getiso():
 #ISO TAG = 0x810b,
     k = sub.find('0x8115',bytealigned = True)
     if len(k) == 0:
-        k = sub.find('0x810b',bytealigned = True)
+        k = sub.find('0x810b00',bytealigned = True)
     if len(k) == 0:
         iso = 'N/A'
         return iso
@@ -326,6 +326,10 @@ def getgps():
     l5 = sub.read(4*8).uint
     l6 = sub.read(4*8).uint
 
+    if ( l2 == 0 or l4 == 0 or l6 == 0):
+        gps = 'N/A'
+        return gps
+
     gpsts = str(int(l1/l2))  + ':' + str(int(l3/l4)) + ":" + str(int(float(l5)/float(l6)))
 
     gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
@@ -494,7 +498,7 @@ for c in range(int(duration)):
     if dist != 'N/A' :
         f.write ('Focus Distance: ' + dist + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
     if gps != 'N/A' :
-        print (gps)
+        #print (gps)
         f.write ('GPS: ' + gps + '\n')
     if ge != 'N/A' :
         f.write (ge  + '\n')
