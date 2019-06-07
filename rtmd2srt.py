@@ -157,7 +157,7 @@ def getiso():
     return str(iso)
 
 def getdb():
-    k = sub.find('0x810a',bytealigned = True)
+    k = sub.find('0x810a00',bytealigned = True)
     if len(k) == 0:
         db = 'N/A'
         return db
@@ -166,7 +166,7 @@ def getdb():
     return str(db)
 
 def getdz():
-    k = sub.find('0x810c',bytealigned = True)
+    k = sub.find('0x810c00',bytealigned = True)
     if len(k) == 0:
         dz = 'N/A'
         return dz
@@ -193,7 +193,7 @@ def getwbmode():
     return str(wb)
 
 def getaf():
-    k = sub.find('0x8101',bytealigned = True)
+    k = sub.find('0x810100',bytealigned = True)
     if len(k) == 0:
         wb = 'N/A'
         return af
@@ -222,7 +222,7 @@ def gettime():
 
 
 def getpasm():
-    k = sub.find('0x8100',bytealigned = True)
+    k = sub.find('0x810000',bytealigned = True)
     if len(k) == 0:
         ae = 'N/A'
         return ae
@@ -237,7 +237,7 @@ def getpasm():
     return ae
 
 def getge():
-    k = sub.find('0x3210',bytealigned = True)
+    k = sub.find('0x321000',bytealigned = True)
     if len(k) == 0:
         ge = 'N/A'
         return ge
@@ -273,7 +273,7 @@ def getgps():
     if len(k) == 0:
         gps = 'N/A'
         return gps
-    sub.find('0x8500',bytealigned = True)
+    sub.find('0x850000',bytealigned = True)
     sub.pos+=32
     gpsver = sub.read(4*8)
 
