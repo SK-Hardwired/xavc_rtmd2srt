@@ -256,7 +256,7 @@ def getge():
     elif ge == '060e2b34040101060e06040101010604' : ge = 'S-Log3'
     elif ge == '060e2b340401010d04010101010b0000' : ge = 'Rec2100-HLG'
     else :
-        ge = 'Gamma: Unkn'
+        ge = 'Gamma: Unkn/Custom'
 
     sub.pos+=32
     cp = sub.read(16*8).hex
@@ -273,6 +273,10 @@ def getgps():
     if len(k) == 0:
         gps = 'N/A'
         return gps
+    sub.find('0x8500',bytealigned = True)
+    sub.pos+=32
+    gpsver = sub.read(4*8)
+
     sub.pos+=32
     latref = BitArray(sub.read(8))
     latref = latref.tobytes().decode('utf-8')
@@ -284,7 +288,12 @@ def getgps():
     l5 = sub.read(4*8).uint
     l6 = sub.read(4*8).uint
 
-    lat = str(l1/l2) + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+    if ( l2 == 0 or l4 == 0 or l6 == 0):
+        gps = 'N/A'
+        return gps
+
+    #lat = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+    lat = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
 
     sub.pos+=32
     lonref = BitArray(sub.read(8))
@@ -302,7 +311,12 @@ def getgps():
     l5 = sub.read(4*8).uint
     l6 = sub.read(4*8).uint
 
-    lon = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+    if ( l2 == 0 or l4 == 0 or l6 == 0):
+        gps = 'N/A'
+        return gps
+
+    #lon = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+    lon = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
 
     sub.pos+=32
     l1 = sub.read(4*8).uint
@@ -312,9 +326,9 @@ def getgps():
     l5 = sub.read(4*8).uint
     l6 = sub.read(4*8).uint
 
-    gpsts = str(l1/l2)  + ':' + str(l3/l4) + ":" + str(float(l5)/float(l6))
+    gpsts = str(int(l1/l2))  + ':' + str(int(l3/l4)) + ":" + str(int(float(l5)/float(l6)))
 
-    gps = lat + str(latref) + ' ' + lon + str(lonref)# + ' ' + gpsts
+    gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
 
     return gps
 
@@ -467,7 +481,7 @@ for c in range(int(duration)):
     af=  getaf()
     time = gettime()
     ge = getge()
-    #gps = getgps()
+    gps = getgps()
 
 
     c+=1
@@ -479,8 +493,9 @@ for c in range(int(duration)):
     f.write ('WB mode: '+ str(wb) + '  |  AF mode: ' + str(af) + '\n')
     if dist != 'N/A' :
         f.write ('Focus Distance: ' + dist + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
-    #if gps != 'N/A' :
-    #    f.write ('GPS: ' + gps + '\n')
+    if gps != 'N/A' :
+        print (gps)
+        f.write ('GPS: ' + gps + '\n')
     if ge != 'N/A' :
         f.write (ge  + '\n')
     #f.write (time + '\n')
