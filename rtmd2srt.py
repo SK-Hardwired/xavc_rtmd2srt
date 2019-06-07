@@ -7,6 +7,7 @@ import io
 import mmap
 import subprocess
 #import numpy as np
+import bitstring
 from bitstring import  ConstBitStream, BitArray #, BitStream, pack, Bits,
 from datetime import datetime, timedelta
 #import gc
@@ -121,14 +122,16 @@ def getdist():
     if len(k) == 0 :
         dist = 'N/A'
         return dist
-    sub.pos+=32
-    diste = sub.read('int:4')
-    distm = sub.read('uint:12')
-    dist = float(distm*(10**diste))
-    dist = round(dist,4)
-    if dist >= 65500 :
-        dist = 'Inf.'
-    else: dist = str(dist)+'m'
+    try:
+        sub.pos+=32
+        diste = sub.read('int:4')
+        distm = sub.read('uint:12')
+        dist = float(distm*(10**diste))
+        dist = round(dist,4)
+        if dist >= 65500 :
+            dist = 'Inf.'
+        else: dist = str(dist)+'m'
+    except (bitstring.ReadError, ValueError) : return 'N/A'
     return dist
 
 
@@ -138,9 +141,11 @@ def getss():
     if len(k) == 0 :
         ss = 'N/A'
         return ss
-    sub.pos+=32
-    ss1 = sub.read(32).uint
-    ss2 = sub.read(32).uint
+    try:
+        sub.pos+=32
+        ss1 = sub.read(32).uint
+        ss2 = sub.read(32).uint
+    except (bitstring.ReadError, ValueError) : return 'N/A'
     ss = str(ss1) + '/' +str(ss2)
     return str(ss)
 
@@ -195,7 +200,7 @@ def getwbmode():
 def getaf():
     k = sub.find('0x810100',bytealigned = True)
     if len(k) == 0:
-        wb = 'N/A'
+        af = 'N/A'
         return af
     sub.pos+=32
     af = sub.read(8).int
@@ -241,31 +246,32 @@ def getge():
     if len(k) == 0:
         ge = 'N/A'
         return ge
-    sub.pos+=32
-    ge = sub.read(16*8).hex
-    if ge ==   '060e2b34040101010401010101020000' : ge = 'Gamma: rec709'
-    elif ge == '060e2b34040101010401010101030000' : ge = 'Gamma: SMPTE ST 240M'
-    elif ge == '060e2b340401010d0401010101080000' : ge = 'rec709-xvycc'
-    elif ge == '060e2b34040101060e06040101010602' : ge = 'Still'
-    elif ge == '060e2b34040101060e06040101010301' : ge = 'Cine1'
-    elif ge == '060e2b34040101060e06040101010302' : ge = 'Cine2'
-    elif ge == '060e2b34040101060e06040101010303' : ge = 'Cine3'
-    elif ge == '060e2b34040101060e06040101010304' : ge = 'Cine4'
-    elif ge == '060e2b34040101060e06040101010508' : ge = 'S-Log2'
-    elif ge == '060e2b34040101060e06040101010605' : ge = 'S-Log3-Cine'
-    elif ge == '060e2b34040101060e06040101010604' : ge = 'S-Log3'
-    elif ge == '060e2b340401010d04010101010b0000' : ge = 'Rec2100-HLG'
-    else :
-        ge = 'Gamma: Unkn/Custom'
+    try:
+        sub.pos+=32
+        ge = sub.read(16*8).hex
+        if ge ==   '060e2b34040101010401010101020000' : ge = 'Gamma: rec709'
+        elif ge == '060e2b34040101010401010101030000' : ge = 'Gamma: SMPTE ST 240M'
+        elif ge == '060e2b340401010d0401010101080000' : ge = 'rec709-xvycc'
+        elif ge == '060e2b34040101060e06040101010602' : ge = 'Still'
+        elif ge == '060e2b34040101060e06040101010301' : ge = 'Cine1'
+        elif ge == '060e2b34040101060e06040101010302' : ge = 'Cine2'
+        elif ge == '060e2b34040101060e06040101010303' : ge = 'Cine3'
+        elif ge == '060e2b34040101060e06040101010304' : ge = 'Cine4'
+        elif ge == '060e2b34040101060e06040101010508' : ge = 'S-Log2'
+        elif ge == '060e2b34040101060e06040101010605' : ge = 'S-Log3-Cine'
+        elif ge == '060e2b34040101060e06040101010604' : ge = 'S-Log3'
+        elif ge == '060e2b340401010d04010101010b0000' : ge = 'Rec2100-HLG'
+        else :
+            ge = 'Gamma: Unkn/Custom'
 
-    sub.pos+=32
-    cp = sub.read(16*8).hex
-    if cp == '060e2b34040101060401010103030000' : ge = ge + '/rec709'
-    elif cp == '060e2b34040101060e06040101030103' : ge = ge + '/S-Gamut'
-    elif cp == '060e2b34040101060e06040101030104' : ge = ge + '/S-Gamut3'
-    elif cp == '060e2b34040101060e06040101030105' : ge = ge + '/S-Gamut3.Cine'
-    elif cp == '060e2b340401010d0401010103040000' : ge = ge + '/rec2020'
-
+        sub.pos+=32
+        cp = sub.read(16*8).hex
+        if cp == '060e2b34040101060401010103030000' : ge = ge + '/rec709'
+        elif cp == '060e2b34040101060e06040101030103' : ge = ge + '/S-Gamut'
+        elif cp == '060e2b34040101060e06040101030104' : ge = ge + '/S-Gamut3'
+        elif cp == '060e2b34040101060e06040101030105' : ge = ge + '/S-Gamut3.Cine'
+        elif cp == '060e2b340401010d0401010103040000' : ge = ge + '/rec2020'
+    except (bitstring.ReadError, ValueError) : return 'N/A'
     return ge
 
 def getgps():
@@ -274,66 +280,68 @@ def getgps():
         gps = 'N/A'
         return gps
     sub.find('0x850000',bytealigned = True)
-    sub.pos+=32
-    gpsver = sub.read(4*8)
+    try:
+        sub.pos+=32
 
-    sub.pos+=32
-    latref = BitArray(sub.read(8))
-    latref = latref.tobytes().decode('utf-8')
-    sub.pos+=32
-    l1 = sub.read(4*8).uint
-    l2 = sub.read(4*8).uint
-    l3 = sub.read(4*8).uint
-    l4 = sub.read(4*8).uint
-    l5 = sub.read(4*8).uint
-    l6 = sub.read(4*8).uint
+        gpsver = sub.read(4*8)
 
-    if ( l2 == 0 or l4 == 0 or l6 == 0):
-        gps = 'N/A'
-        return gps
+        sub.pos+=32
+        latref = BitArray(sub.read(8))
+        latref = latref.tobytes().decode('utf-8')
+        sub.pos+=32
+        l1 = sub.read(4*8).uint
+        l2 = sub.read(4*8).uint
+        l3 = sub.read(4*8).uint
+        l4 = sub.read(4*8).uint
+        l5 = sub.read(4*8).uint
+        l6 = sub.read(4*8).uint
 
-    #lat = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
-    lat = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
+        if ( l2 == 0 or l4 == 0 or l6 == 0):
+            gps = 'N/A'
+            return gps
 
-    sub.pos+=32
-    lonref = BitArray(sub.read(8))
-    lonref = lonref.tobytes().decode('utf-8')
+        #lat = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+        lat = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
 
-    #k = sub.find('0x8504',bytealigned = True)
-    #if len(k) == 0:
-    #    gps = 'N/A'
-    #    return ae
-    sub.pos+=32
-    l1 = sub.read(4*8).uint
-    l2 = sub.read(4*8).uint
-    l3 = sub.read(4*8).uint
-    l4 = sub.read(4*8).uint
-    l5 = sub.read(4*8).uint
-    l6 = sub.read(4*8).uint
+        sub.pos+=32
+        lonref = BitArray(sub.read(8))
+        lonref = lonref.tobytes().decode('utf-8')
 
-    if ( l2 == 0 or l4 == 0 or l6 == 0):
-        gps = 'N/A'
-        return gps
+        #k = sub.find('0x8504',bytealigned = True)
+        #if len(k) == 0:
+        #    gps = 'N/A'
+        #    return ae
+        sub.pos+=32
+        l1 = sub.read(4*8).uint
+        l2 = sub.read(4*8).uint
+        l3 = sub.read(4*8).uint
+        l4 = sub.read(4*8).uint
+        l5 = sub.read(4*8).uint
+        l6 = sub.read(4*8).uint
 
-    #lon = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
-    lon = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
+        if ( l2 == 0 or l4 == 0 or l6 == 0):
+            gps = 'N/A'
+            return gps
 
-    sub.pos+=32
-    l1 = sub.read(4*8).uint
-    l2 = sub.read(4*8).uint
-    l3 = sub.read(4*8).uint
-    l4 = sub.read(4*8).uint
-    l5 = sub.read(4*8).uint
-    l6 = sub.read(4*8).uint
+        #lon = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+        lon = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
 
-    if ( l2 == 0 or l4 == 0 or l6 == 0):
-        gps = 'N/A'
-        return gps
+        sub.pos+=32
+        l1 = sub.read(4*8).uint
+        l2 = sub.read(4*8).uint
+        l3 = sub.read(4*8).uint
+        l4 = sub.read(4*8).uint
+        l5 = sub.read(4*8).uint
+        l6 = sub.read(4*8).uint
 
-    gpsts = str(int(l1/l2))  + ':' + str(int(l3/l4)) + ":" + str(int(float(l5)/float(l6)))
+        if ( l2 == 0 or l4 == 0 or l6 == 0):
+            gps = 'N/A'
+            return gps
 
-    gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
+        gpsts = str(int(l1/l2))  + ':' + str(int(l3/l4)) + ":" + str(int(float(l5)/float(l6)))
 
+        gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
+    except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return gps
 
 def sampletime (ssec,sdur):
@@ -473,6 +481,23 @@ for c in range(int(duration)):
     i = samples[0]
     sub = s[i:(i+1024*8)]
     if '0x060e2b340401010b05100101' not in sub :
+        c+=1
+
+        f.write (str(c) +'\n')
+        f.write (str(sampletime(ssec,sdur)) + '\n')
+        f.write ('Frame: ' + str(c) + '/' + duration.decode() + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
+        f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
+        f.write ('WB mode: '+ str(wb) + '  |  AF mode: ' + str(af) + '\n')
+        if dist != 'N/A' :
+            f.write ('Focus Distance: ' + dist + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
+        if gps != 'N/A' :
+            #print (gps)
+            f.write ('GPS: ' + gps + '\n')
+        if ge != 'N/A' :
+            f.write (ge  + '\n')
+        #f.write (time + '\n')
+        f.write ('\n')
+        ssec=ssec+sdur
         continue
     fn = getfn()
     dist=getdist()
@@ -506,12 +531,14 @@ for c in range(int(duration)):
     f.write ('\n')
     ssec=ssec+sdur
 
-    sys.stdout.write('\rProcessed ' + str(c) + ' frames of ' + duration.decode() + '   (' + str(round(samples[0]/8/1000000))+'MB' + ' of ' + str(round(filesize/1000000)) + 'MB)')
+    sys.stdout.write('\rProcessed ' + str(c) + ' frames of ' + duration.decode() + '   (' + str(round(samples[0]/8/(1000**2))+'MB' + ' of ' + str(round(filesize/(1000**2))) + 'MB)')
     sys.stdout.flush()
 
     if msvcrt.kbhit() and msvcrt.getch() == chr(27).encode():
         print ('\n \n Aborted! Saving processed data...')
         break
+
+
 
 with open(F[:-3]+'srt', 'w') as outfile:
     outfile.write(f.getvalue())
