@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
-import sys
 import os
+
+#multi-platform keyboard intercept load
+if os.name == 'nt':
+    import msvcrt
+else:
+    import select
+import sys
 import re
-import msvcrt
 import io
 import mmap
 import subprocess
@@ -18,7 +23,7 @@ parser = argparse.ArgumentParser(description='Extracts realtime meta-data from X
 
 parser.add_argument('infile',help='Put SOURCE XAVC S file path (ends with .MP4')
 parser.add_argument('-muxmkv', action='store_true', help='Key to mux meta-data srt stream into new MKV file with ffmpeg')
-parser.add_argument('-sidecar', action='store_true', help='Key to mux meta-data srt stream into new MKV file with ffmpeg')
+parser.add_argument('-sidecar', action='store_true', help='Key to generate XML sidecar file from XAVC S file (if you lost original XML sidecar written by camera)')
 
 args = parser.parse_args()
 
@@ -188,7 +193,7 @@ def getwbmode():
     sub.pos+=32
     wb = sub.read(8).int
     if wb == 0:
-        wb = 'Manual'
+        wb = 'Man'
     elif wb == 1:
         wb = 'Auto'
     elif wb == 2:
@@ -205,15 +210,15 @@ def getaf():
     sub.pos+=32
     af = sub.read(8).int
     if af == 0:
-        af = 'Manual'
+        af = 'MF'
     elif af == 1:
-        af = 'Auto center'
+        af = 'AF Center'
     elif af == 2:
-        af = 'Auto Whole'
+        af = 'AF Whole'
     elif af == 3:
-        af = 'Auto Multi'
+        af = 'AF Multi'
     elif af == 4:
-        af = 'Auto Spot'
+        af = 'AF Spot'
     return str(af)
 
 def gettime():
@@ -233,11 +238,11 @@ def getpasm():
         return ae
     sub.pos+=32
     ae = sub.read(16*8).hex
-    if ae ==   '060e2b340401010b0510010101010000' : ae = 'Exp. mode: M '
-    elif ae == '060e2b340401010b0510010101020000' : ae = 'Exp. mode: AUTO'
-    elif ae == '060e2b340401010b0510010101030000' : ae = 'Exp. mode: GAIN'
-    elif ae == '060e2b340401010b0510010101040000' : ae = 'Exp. mode: A'
-    elif ae == '060e2b340401010b0510010101050000' : ae = 'Exp. mode: S'
+    if ae ==   '060e2b340401010b0510010101010000' : ae = 'Exp.mode: M '
+    elif ae == '060e2b340401010b0510010101020000' : ae = 'Exp.mode: AUTO'
+    elif ae == '060e2b340401010b0510010101030000' : ae = 'Exp.mode: GAIN'
+    elif ae == '060e2b340401010b0510010101040000' : ae = 'Exp.mode: A'
+    elif ae == '060e2b340401010b0510010101050000' : ae = 'Exp.mode: S'
     else : ae = 'N/A'
     return ae
 
@@ -487,7 +492,7 @@ for c in range(int(duration)):
         f.write (str(c) +'\n')
         f.write (str(sampletime(ssec,sdur)) + '\n')
         f.write ('Frame: ' + str(c) + '/' + duration.decode() + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
-        f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
+        f.write (ae +'  ' + iso + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
         f.write ('WB mode: '+ str(wb) + '  |  AF mode: ' + str(af) + '\n')
         if dist != 'N/A' :
             f.write ('Focus Distance: ' + dist + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
@@ -504,9 +509,16 @@ for c in range(int(duration)):
     dist=getdist()
     ss=  getss()
     iso= getiso()
+    if iso == 'N/A':
+        iso = ''
+    else:
+        iso = 'ISO: ' + str(iso)
+
     db = getdb()
     #dz = getdz()
     ae=  getpasm()
+    if ae == 'N/A':
+        ae = ''
     wb=  getwbmode()
     af=  getaf()
     time = gettime()
@@ -516,7 +528,7 @@ for c in range(int(duration)):
     f.write (str(c) +'\n')
     f.write (str(sampletime(ssec,sdur)) + '\n')
     f.write ('Frame: ' + str(c) + '/' + duration.decode() + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
-    f.write (ae +'  ISO: ' + str(iso) + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
+    f.write (ae +'  ' + iso + '  Gain: ' + str(db) +'db' + '  F' + str(fn) + '  Shutter: ' + str(ss) + '\n')
     f.write ('WB mode: '+ str(wb) + '  |  AF mode: ' + str(af) + '\n')
     if dist != 'N/A' :
         f.write ('Focus Distance: ' + dist + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
@@ -530,9 +542,20 @@ for c in range(int(duration)):
     ssec=ssec+sdur
     sys.stdout.write ('\rProcessed ' + str(c) + ' frames of ' + str(duration.decode()) + '   (' + str(round(samples[0]/8/(1000**2))) + 'MB  of ' + str(round(filesize/(1000**2))) + 'MB)')
     sys.stdout.flush()
-    if msvcrt.kbhit() and msvcrt.getch() == chr(27).encode() :
-        print ('\n \n Aborted! Saving processed data...')
-        break
+
+    if os.name == 'nt':
+        if msvcrt.kbhit() and (msvcrt.getch() == b'\x1b'):
+            print ('\n \n Aborted! Saving processed data...')
+            break
+
+""" This code to be used for non-windows OS, not FINISHED!!!
+    else:
+        dr,dw,de = select([sys.stdin], [], [], 0)
+        kbinter = sys.stdin.read(1)
+        if ord(kbinter) == 27:
+            print ('\n \n Aborted! Saving processed data...')
+            break
+"""
 
 with open(F[:-3]+'srt', 'w') as outfile:
     outfile.write(f.getvalue())
