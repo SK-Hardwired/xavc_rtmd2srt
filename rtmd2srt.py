@@ -92,19 +92,6 @@ E3 02 - 1 byte - in XAVC S always = 01
 E3 03 - 1 byte - in XAVC S always = FF (255)
 E3 04 - 8 bytes - Current record date and time in YY-YY-MM-DD-HH-MM-SS format
 
-GPS tags
-
-0x8500 - 4 bytes - gps version - 2.2.0.0 (02020000)
-0x8501 - 1 byte - LatitudeRef - N (4e)
-0x8502 - 18h bytes - Latitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
-0x8503 - 1 byte - LongtitudeRef - E (45)
-0x8504 - 18h bytes - Longtitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
-0x8507 - 18h bytes - Timestamp - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
-0x8509 - 1 byte - STATUS - 'A' (if GPS not acquired, = 'V')
-0x850a - 1 byte - MeasureMode - '2'
-0x8512 - 6 bytes - MapDatum  - 57 47 53 2D 38 34 (WGS-84)
-0x851d - 0a bytes - string (2018:10:30)
-
 
 
 '''
@@ -281,6 +268,24 @@ def getge():
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return ge
 
+'''
+GPS tags
+
+0x8500 - 4 bytes - gps version - 2.2.0.0 (02020000)
+0x8501 - 1 byte - LatitudeRef - N (4e)
+0x8502 - 18h bytes - Latitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
+0x8503 - 1 byte - LongtitudeRef - E (45)
+0x8504 - 18h bytes - Longtitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
+0x8505 - 1 byte - ???? (equal to 1)
+0x8506 - 8 bytes - ???? ([4]/[4]???). Second [4] almost always = 1000 dec
+0x8507 - 18h bytes - Timestamp - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
+0x8509 - 1 byte - STATUS - 'A' (if GPS not acquired, = 'V')
+0x850a - 1 byte - MeasureMode - '2'
+0x850b - 8 bytes - ???? ([4]/[4]???). Second [4] almost always = 1000 dec
+0x8512 - 6 bytes - MapDatum  - 57 47 53 2D 38 34 (WGS-84)
+0x851d - 0a bytes - string (2018:10:30)
+'''
+
 def getgps():
     k = sub.find('0x851200',bytealigned = True)
     if len(k) == 0:
@@ -289,13 +294,15 @@ def getgps():
     sub.find('0x850000',bytealigned = True)
     try:
         sub.pos+=32
-
+        #read 0x850000 - GPS Ver
         gpsver = sub.read(4*8)
 
         sub.pos+=32
+        #read 0x8501 - Latitude Ref (N or S)
         latref = BitArray(sub.read(8))
         latref = latref.tobytes().decode('utf-8')
         sub.pos+=32
+        # read 0x8502 - latiture (6 chunks)
         l1 = sub.read(4*8).uint
         l2 = sub.read(4*8).uint
         l3 = sub.read(4*8).uint
@@ -307,17 +314,14 @@ def getgps():
             gps = 'N/A'
             return gps
 
-        #lat = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
-        lat = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
+        #write latitute string for text output
+        lat = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str((float(l5)/float(l6))) + '"'
 
         sub.pos+=32
+        #read 0x8503 - longtitude ref (E or W)
         lonref = BitArray(sub.read(8))
         lonref = lonref.tobytes().decode('utf-8')
-
-        #k = sub.find('0x8504',bytealigned = True)
-        #if len(k) == 0:
-        #    gps = 'N/A'
-        #    return ae
+        # read 0x8504 - latiture (6 chunks)
         sub.pos+=32
         l1 = sub.read(4*8).uint
         l2 = sub.read(4*8).uint
@@ -330,11 +334,23 @@ def getgps():
             gps = 'N/A'
             return gps
 
-        #lon = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
-        lon = str(round(float(l1)/float(l2))) + '°' + str(round(float(l3)/float(l4))) + "'" + str(round(float(l5)/float(l6))) + '"'
+        #write latitute string for text output
+        lon = str(round(float(l1)/float(l2))) + '°' + str(round(float(l3)/float(l4))) + "'" + str((float(l5)/float(l6))) + '"'
 
-        sub.pos+=17*8 #jump to timestamp (skip 0x8505 (1) and 0x8506 (8) tags)
         sub.pos+=32
+        #read 0x8505 - 1 bytes = AltitudeRef (0 = above sea level, 1 = below sea level)
+        x8505 = sub.read (8).uint
+
+        sub.pos+=32
+        #read 0x8506 - 8 bytes ([4]/[4]???) - Altitude
+        x8506_1 = sub.read(4*8).uint
+        x8506_2 = sub.read(4*8).uint
+
+        x8506 = str(float(x8506_1)/float(x8506_2))
+
+        #sub.pos+=17*8 #jump to timestamp (skip 0x8505 (1) and 0x8506 (8) tags)
+        sub.pos+=32
+        # read 0x8507 - timestamp (6 chunks)
         l1 = sub.read(4*8).uint
         l2 = sub.read(4*8).uint
         l3 = sub.read(4*8).uint
@@ -345,10 +361,55 @@ def getgps():
         if ( l2 == 0 or l4 == 0 or l6 == 0):
             gps = 'N/A'
             return gps
+        #write timestamp for text output (hh:mm:ss.xxx)
+        gpsts = str(int(float(l1)/float(l2)))  + ':' + str(int(float(l3)/float(l4))) + ":" + str((float(l5)/float(l6)))
 
-        gpsts = str(int(float(l1)/float(l2)))  + ':' + str(int(float(l3)/float(l4))) + ":" + str(int(float(l5)/float(l6)))
+        sub.pos+=32
+        #read 0x8509 - GPS fix STATUS
+        gpsfix = BitArray(sub.read(8))
+        gpsfix = gpsfix.tobytes().decode('utf-8')
 
+        sub.pos+=32
+        # read 0x850a - GPS Measure mode (2 = 2D, 3 = 3D)
+        gpsmeasure = BitArray(sub.read(8))
+        gpsmeasure = gpsmeasure.tobytes().decode('utf-8')
+
+        sub.pos+=32
+        #read 0x850b - ????? 8 bytes ([4]/[4]???) -- DOP
+        x850b_1 = sub.read(4*8).uint
+        x850b_2 = sub.read(4*8).uint
+
+        x850b = str(float(x850b_1)/float(x850b_2))
+
+        sub.pos+=32
+        #read 0x850c - ???? 1 byte - SpeedRef (K = km/h, M = mph, N = knots)
+        #x850c = sub.read(8).uint
+        x850c = BitArray(sub.read(8))
+        x850c = x850c.tobytes().decode('utf-8')
+
+        sub.pos+=32
+        #read 0x850d - 8 bytes ([4]/[4]???) - SPEED?
+        x850d_1 = sub.read(4*8).uint
+        x850d_2 = sub.read(4*8).uint
+
+        x850d = str(float(x850d_1)/float(x850d_2))
+
+        sub.pos+=32
+        #read 0x850e - 1 byte - TrackRef (Direction Reference, T = True direction, M = Magnetic direction)
+        #x850e = sub.read(8).uint
+        x850e = BitArray(sub.read(8))
+        x850e = x850e.tobytes().decode('utf-8')
+
+        sub.pos+=32
+        #read 0x850f - Direction 8 bytes ([4]/[4]???) (degrees from 0.0 to 359.99)
+        x850f_1 = sub.read(4*8).uint
+        x850f_2 = sub.read(4*8).uint
+
+        x850f = str(float(x850f_1)/float(x850f_2))
+
+        #write full lat + lon + timestamp for text output
         gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
+        gps = gps + '\n' +str(x8505) + ' ' + str(x8506) + ' ' + str(gpsfix) + ' ' + str(gpsmeasure) + ' ' + str(x850b) + ' ' + str(x850c) + ' ' + str(x850d) + ' ' + str(x850e) + ' ' + str(x850f)
     except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return gps
 
