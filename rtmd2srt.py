@@ -226,8 +226,10 @@ def gettime():
     if len(k) == 0:
         time = 'N/A'
         return time
-    sub.pos+=40
-    time = str(sub.read(16).hex)+'/'+str(sub.read(8).hex)+'/'+str(sub.read(8).hex)+' '+str(sub.read(8).hex)+':'+str(sub.read(8).hex)+':'+str(sub.read(8).hex)
+    try:
+        sub.pos+=40
+        time = str(sub.read(16).hex)+'/'+str(sub.read(8).hex)+'/'+str(sub.read(8).hex)+' '+str(sub.read(8).hex)+':'+str(sub.read(8).hex)+':'+str(sub.read(8).hex)
+    except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return str(time)
 
 

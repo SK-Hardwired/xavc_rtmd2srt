@@ -1,6 +1,8 @@
 # XAVC S video real-time meta-data parser
 Extract realtime meta-data (i.e. per-frame) from Sony XAVC video and render to srt subtitle file
 
+![alt text](ax700_meta_srt.jpg "Real-time shooting meta-data displayed in VLC over video")
+
 Besides of non-realtime metadata which MediaInfo or Exiftool can see, Sony cameras record many other real-time meta-data for every frame such as it's ISO, F number, shutter speed, AE mode and even focus distance in special Acquisition Meta-data section.
 
 Looks like this feature partially inherited by XAVC S from professional Sony XAVC codec and MXF container.
@@ -18,6 +20,7 @@ Meta-data supported:
 - Capture Gamma / ColorSpace (looks like it is fixed on first frame; meta-data not changed if Picture Profile changed on camera during recording)
 - recording date and time in YYYY/MM/DD HH/MM/SS format as it is set in camera settings (output disabled yet)
 - timecode (N/A for models w/o timecode fieature; output not implemented yet)
+- GPS coords and timestamp (if available)
 
 Meta-data not supported (as no any existing consumer camera models record it):
 - lens focal length, zoom position
@@ -36,7 +39,7 @@ Optional arguments:
 - **-sidecar** - extract embedded XML non-realtime metadata (similar to XML sidecar recorded by camera)
 - **-muxmkv** - create new MKV file with embedded subtitles stream with meta-data (requires ffmpeg.exe to be in same folder)
 
-Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-5100 videos. Limited compatibility with ActionCam videos - works well if no GPS data captured.
+Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-5100 videos.
 
 Written in: Python 3.7
 
