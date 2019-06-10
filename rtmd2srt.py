@@ -275,7 +275,7 @@ def getge():
     return ge
 
 def getgps():
-    k = sub.find('0x8512',bytealigned = True)
+    k = sub.find('0x851200',bytealigned = True)
     if len(k) == 0:
         gps = 'N/A'
         return gps
@@ -324,8 +324,9 @@ def getgps():
             return gps
 
         #lon = str(l1/l2)  + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
-        lon = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str(round(float(l5)/float(l6))) + '"'
+        lon = str(round(float(l1)/float(l2))) + '°' + str(round(float(l3)/float(l4))) + "'" + str(round(float(l5)/float(l6))) + '"'
 
+        sub.pos+=17*8 #jump to timestamp (skip 0x8505 (1) and 0x8506 (8) tags)
         sub.pos+=32
         l1 = sub.read(4*8).uint
         l2 = sub.read(4*8).uint
@@ -338,7 +339,7 @@ def getgps():
             gps = 'N/A'
             return gps
 
-        gpsts = str(int(l1/l2))  + ':' + str(int(l3/l4)) + ":" + str(int(float(l5)/float(l6)))
+        gpsts = str(int(float(l1)/float(l2)))  + ':' + str(int(float(l3)/float(l4))) + ":" + str(int(float(l5)/float(l6)))
 
         gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
     except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
@@ -458,6 +459,7 @@ sdur = float(sd)/float(ts) #each frame duration
 print ('Model Name:', vendor.decode(), modelname.decode())
 print ('Video duration (frames):', duration.decode())
 print ('Framerate:', float(ts)/float(sd))
+print ('Video duration (sec):', float(duration.decode())/(float(ts)/float(sd)))
 
 if args.sidecar == True:
     opt_sidecar()
@@ -482,7 +484,6 @@ for c in range(int(duration)):
     sub = s[i:(i+1024*8)]
     if '0x060e2b340401010b05100101' not in sub :
         c+=1
-
         f.write (str(c) +'\n')
         f.write (str(sampletime(ssec,sdur)) + '\n')
         f.write ('Frame: ' + str(c) + '/' + duration.decode() + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
@@ -511,10 +512,7 @@ for c in range(int(duration)):
     time = gettime()
     ge = getge()
     gps = getgps()
-
-
     c+=1
-
     f.write (str(c) +'\n')
     f.write (str(sampletime(ssec,sdur)) + '\n')
     f.write ('Frame: ' + str(c) + '/' + duration.decode() + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
@@ -530,15 +528,11 @@ for c in range(int(duration)):
     #f.write (time + '\n')
     f.write ('\n')
     ssec=ssec+sdur
-
-    sys.stdout.write('\rProcessed ' + str(c) + ' frames of ' + duration.decode() + '   (' + str(round(samples[0]/8/(1000**2))+'MB' + ' of ' + str(round(filesize/(1000**2))) + 'MB)')
+    sys.stdout.write ('\rProcessed ' + str(c) + ' frames of ' + str(duration.decode()) + '   (' + str(round(samples[0]/8/(1000**2))) + 'MB  of ' + str(round(filesize/(1000**2))) + 'MB)')
     sys.stdout.flush()
-
-    if msvcrt.kbhit() and msvcrt.getch() == chr(27).encode():
+    if msvcrt.kbhit() and msvcrt.getch() == chr(27).encode() :
         print ('\n \n Aborted! Saving processed data...')
         break
-
-
 
 with open(F[:-3]+'srt', 'w') as outfile:
     outfile.write(f.getvalue())
