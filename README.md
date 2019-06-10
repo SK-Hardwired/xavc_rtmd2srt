@@ -33,8 +33,8 @@ Meta-data not supported (as no any existing consumer camera models record it):
 TO DO:
 - implement GPS extraction
 
-Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 argument (full video file path or just file name if in the same folder)
-Example: **x_rtmd2srt.exe D:\Video\C0035.MP4**
+Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 required argument (full video file path or just file name if in the same folder)
+Example: **rtmd2srt.exe D:\Video\C0035.MP4**
 Optional arguments:
 - **-sidecar** - extract embedded XML non-realtime metadata (similar to XML sidecar recorded by camera)
 - **-muxmkv** - create new MKV file with embedded subtitles stream with meta-data (requires ffmpeg.exe to be in same folder)
