@@ -10,24 +10,27 @@ import sys
 import re
 import io
 import mmap
+import math
 import subprocess
-#import numpy as np
 import bitstring
 from bitstring import  ConstBitStream, BitArray #, BitStream, pack, Bits,
 from datetime import datetime, timedelta
-#import gc
-
 import argparse
+import gpxpy
+import gpxpy.gpx
+
 
 parser = argparse.ArgumentParser(description='Extracts realtime meta-data from XAVC files and put to SRT (subtitle) file',)
 
 parser.add_argument('infile',help='Put SOURCE XAVC S file path (ends with .MP4')
 parser.add_argument('-muxmkv', action='store_true', help='Key to mux meta-data srt stream into new MKV file with ffmpeg')
 parser.add_argument('-sidecar', action='store_true', help='Key to generate XML sidecar file from XAVC S file (if you lost original XML sidecar written by camera)')
+parser.add_argument('-gpx', action='store_true', help='Write GPX Track file if GPS data available')
+parser.add_argument('-check',action='store_true', help='Just output some basic file data')
 
 args = parser.parse_args()
 
-print (args)
+#print (args)
 
 '''
 GENERAL RTMD tags FORMAT
@@ -276,14 +279,29 @@ GPS tags
 0x8502 - 18h bytes - Latitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
 0x8503 - 1 byte - LongtitudeRef - E (45)
 0x8504 - 18h bytes - Longtitude - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
-0x8505 - 1 byte - ???? (equal to 1)
-0x8506 - 8 bytes - ???? ([4]/[4]???). Second [4] almost always = 1000 dec
+0x8505 - 1 byte - AltitudeRef  (equal to 1)
+0x8506 - 8 bytes - Altitude (meters) ([4]/[4]???). Second [4] almost always = 1000 dec
 0x8507 - 18h bytes - Timestamp - [4]/[4]:[4]/[4]:[4]/[4] = 09:09:09.123
 0x8509 - 1 byte - STATUS - 'A' (if GPS not acquired, = 'V')
-0x850a - 1 byte - MeasureMode - '2'
-0x850b - 8 bytes - ???? ([4]/[4]???). Second [4] almost always = 1000 dec
+0x850a - 1 byte - MeasureMode - (2 = 2D, 3 = 3D)
+0x850b - 8 bytes - DOP ([4]/[4]???). Second [4] almost always = 1000 dec
+read 0x850c -  1 byte - SpeedRef (K = km/h, M = mph, N = knots)
+read 0x850d - 8 bytes ([4]/[4]???) - SPEED
+read 0x850e - 1 byte - TrackRef (Direction Reference, T = True direction, M = Magnetic direction)
+read 0x850f - Direction 8 bytes ([4]/[4]???) (degrees from 0.0 to 359.99)
 0x8512 - 6 bytes - MapDatum  - 57 47 53 2D 38 34 (WGS-84)
 0x851d - 0a bytes - string (2018:10:30)
+
+used in GPX:
+lat (calculated from latref and lat)
+lon (calculated from lonref and lon)
+time (timestamp = date+timestamp in UTZ format)
+MeasureMode
+speed (in GPX 1.0 only!)
+altitude (calculated from altref and alitude)
+DOP (?HDOP, VDOP, PDOP?)
+
+
 '''
 
 def getgps():
@@ -316,6 +334,7 @@ def getgps():
 
         #write latitute string for text output
         lat = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str((float(l5)/float(l6))) + '"'
+        latdd = round((float(l1)/float(l2) + (float(l3)/float(l4))/60 + (float(l5)/float(l6)/(60*60)) * (-1 if latref in ['W', 'S'] else 1)), 7)
 
         sub.pos+=32
         #read 0x8503 - longtitude ref (E or W)
@@ -336,6 +355,7 @@ def getgps():
 
         #write latitute string for text output
         lon = str(round(float(l1)/float(l2))) + '°' + str(round(float(l3)/float(l4))) + "'" + str((float(l5)/float(l6))) + '"'
+        londd = round((float(l1)/float(l2) + (float(l3)/float(l4))/60 + (float(l5)/float(l6)/(60*60)) * (-1 if lonref in ['W', 'S'] else 1)), 7)
 
         sub.pos+=32
         #read 0x8505 - 1 bytes = AltitudeRef (0 = above sea level, 1 = below sea level)
@@ -362,7 +382,8 @@ def getgps():
             gps = 'N/A'
             return gps
         #write timestamp for text output (hh:mm:ss.xxx)
-        gpsts = str(int(float(l1)/float(l2)))  + ':' + str(int(float(l3)/float(l4))) + ":" + str((float(l5)/float(l6)))
+
+        gpsts = str(int(float(l1)/float(l2))).zfill(2) + ':' + str(int(float(l3)/float(l4))).zfill(2) + ":" + str(int(float(l5)/float(l6))).zfill(2)
 
         sub.pos+=32
         #read 0x8509 - GPS fix STATUS
@@ -375,20 +396,20 @@ def getgps():
         gpsmeasure = gpsmeasure.tobytes().decode('utf-8')
 
         sub.pos+=32
-        #read 0x850b - ????? 8 bytes ([4]/[4]???) -- DOP
+        #read 0x850b -  8 bytes ([4]/[4]???) -- DOP
         x850b_1 = sub.read(4*8).uint
         x850b_2 = sub.read(4*8).uint
 
         x850b = str(float(x850b_1)/float(x850b_2))
 
         sub.pos+=32
-        #read 0x850c - ???? 1 byte - SpeedRef (K = km/h, M = mph, N = knots)
+        #read 0x850c -  1 byte - SpeedRef (K = km/h, M = mph, N = knots)
         #x850c = sub.read(8).uint
         x850c = BitArray(sub.read(8))
         x850c = x850c.tobytes().decode('utf-8')
 
         sub.pos+=32
-        #read 0x850d - 8 bytes ([4]/[4]???) - SPEED?
+        #read 0x850d - 8 bytes ([4]/[4]???) - SPEED
         x850d_1 = sub.read(4*8).uint
         x850d_2 = sub.read(4*8).uint
 
@@ -410,6 +431,20 @@ def getgps():
         #write full lat + lon + timestamp for text output
         gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
         gps = gps + '\n' +str(x8505) + ' ' + str(x8506) + ' ' + str(gpsfix) + ' ' + str(gpsmeasure) + ' ' + str(x850b) + ' ' + str(x850c) + ' ' + str(x850d) + ' ' + str(x850e) + ' ' + str(x850f)
+
+        k = sub.find('0x851d000a',bytealigned = True)
+        sub.pos+=32
+        gpxdate = BitArray(sub.read(8*10))
+        gpxdate = gpxdate.tobytes().decode('utf-8')
+        gpxdate = gpxdate.replace(':','-')
+        gpxdate = gpxdate + 'T' + gpsts + 'Z'
+
+        #write GPX
+        if args.gpx and 'ExifGPS'.encode() in exifchk :
+            #print(gpxdate)
+            #print (gpxdate[14:16])
+            gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)), time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19]))))
+
     except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return gps
 
@@ -493,6 +528,10 @@ pattern = b'modelName="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(
 rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
 modelname = rx.findall(m)[0]
 
+pattern = b'Group name="(.*?)"'#    .*?formatFps="(.*?)".*?Device manufacturer="(.*?)".*?modelName="(.*?)"'
+rx = re.compile(pattern, re.IGNORECASE|re.MULTILINE|re.DOTALL)
+exifchk = rx.findall(m)
+
 
 
 s = ConstBitStream(filename=F, offset = offset*8) #,length=(mmap.ALLOCATIONGRANULARITY),offset = offset
@@ -528,14 +567,32 @@ print ('Model Name:', vendor.decode(), modelname.decode())
 print ('Video duration (frames):', duration.decode())
 print ('Framerate:', float(ts)/float(sd))
 print ('Video duration (sec):', float(duration.decode())/(float(ts)/float(sd)))
+if 'ExifGPS'.encode() in exifchk : print ('ExifGPS group detected in non-realtime meta-data section. GPX Track extraction possible.')
+if args.gpx and 'ExifGPS'.encode() in exifchk : print ('-gpx argument specified. Will extract GPX track.')
 
 if args.sidecar == True:
     opt_sidecar()
 
 all_the_data.close()
+
+if args.check :
+    print ('XAVC S file check completed')
+    sys.exit()
+
 ### NRT_Acquire END ###
 
 print ('Processing...')
+
+if args.gpx and 'ExifGPS'.encode() in exifchk :
+    gpx = gpxpy.gpx.GPX()
+
+    # Create first track in our GPX:
+    gpx_track = gpxpy.gpx.GPXTrack()
+    gpx.tracks.append(gpx_track)
+
+    # Create first segment in our GPX track:
+    gpx_segment = gpxpy.gpx.GPXTrackSegment()
+    gpx_track.segments.append(gpx_segment)
 
 ssec = 0
 k=0
@@ -550,6 +607,7 @@ for c in range(int(duration)):
     offset = samples[0] + 1024*8
     i = samples[0]
     sub = s[i:(i+1024*8)]
+
     if '0x060e2b340401010b05100101' not in sub :
         c+=1
         f.write (str(c) +'\n')
@@ -627,6 +685,13 @@ f.close()
 
 print ('\nLast frame processed:', c)
 print ('Success! SRT file created: ' + F[:-3]+'srt')
+
+if args.gpx and 'ExifGPS'.encode() in exifchk :
+    print ('Writting GPX file')
+    #print ('Created GPX:', gpx.to_xml())
+    with open(F[:-3]+'gpx', 'w') as outfile:
+        outfile.write(gpx.to_xml())
+    print ('Finished writting GPX file:', F[:-3]+'gpx')
 
 if args.muxmkv:
     opt_muxmkv()
