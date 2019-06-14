@@ -313,7 +313,7 @@ DOP (?HDOP, VDOP, PDOP?)
 
 '''
 
-def getgps():
+def getgps(ssec_old):
     k = sub.find('0x851200',bytealigned = True)
     if len(k) == 0:
         gps = 'N/A'
@@ -439,7 +439,9 @@ def getgps():
 
         #write full lat + lon + timestamp for text output
         gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
-        gps = gps + '\n' +str(x8505) + ' ' + str(x8506) + ' ' + str(gpsfix) + ' ' + str(gpsmeasure) + ' ' + str(x850b) + ' ' + str(x850c) + ' ' + str(x850d) + ' ' + str(x850e) + ' ' + str(x850f)
+        # debug
+        #gps = gps + '\n' +str(x8505) + ' ' + str(x8506) + ' ' + str(gpsfix) + ' ' + str(gpsmeasure) + ' ' + str(x850b) + ' ' + str(x850c) + ' ' + str(x850d) + ' ' + str(x850e) + ' ' + str(x850f)
+        gps = gps + '\n' 'Speed: ' + str(x850d) + 'km/h   Course: ' + str(x850f)
 
         k = sub.find('0x851d000a',bytealigned = True)
         sub.pos+=32
@@ -448,29 +450,33 @@ def getgps():
         gpxdate = gpxdate.replace(':','-')
         gpxdate = gpxdate + 'T' + gpsts + 'Z'
 
-        #write GPX
-        if args.gpx and 'ExifGPS'.encode() in exifchk :
+        #write GPX. Filtered 1 point per 1 second of video
+
+        if (args.gpx and 'ExifGPS'.encode() in exifchk) and math.modf(ssec_old)[1] != math.modf(ssec)[1] :
             #print(gpxdate)
             #print (gpxdate[14:16])
 
 
-            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)), time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19])))
+            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)),
+            time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19])))
+            """ , course=x850f, speed=(x850d_1/x850d_2/3.6))"""
             gpx_segment.points.append(gpx_point)
             #gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)), time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19]))))
         #GPX EXT TEST AREA
+            """
             namespace = '{gpxtx}'
             nsmap = {'gpxtpx' : namespace[1:-1]} #
             root = mod_etree.Element(namespace + 'TrackPointExtension')
 
             subnode1 = mod_etree.SubElement(root, namespace + 'speed')
             subnode2 = mod_etree.SubElement(root, namespace + 'course')
-            subnode1.text = str(float(x850d_1/x850d_2))
+            subnode1.text = str(x850d_1/x850d_2/3.6)
             subnode2.text = (x850f)
             #gpx_track = gpxpy.gpx.GPX()
             gpx.nsmap = nsmap
 
             gpx_point.extensions.append(root)
-
+            """
     except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return gps
 
@@ -610,39 +616,37 @@ if args.check :
 print ('Processing...')
 
 if args.gpx and 'ExifGPS'.encode() in exifchk :
-    gpx = gpxpy.gpx.GPX()
 
+    gpx = gpxpy.gpx.GPX()
     # Create first track in our GPX:
-    gpx_track = gpxpy.gpx.GPXTrack()
+    gpx_track = gpxpy.gpx.GPXTrack(name='Trackname')
     gpx.tracks.append(gpx_track)
 
     # Create first segment in our GPX track:
     gpx_segment = gpxpy.gpx.GPXTrackSegment()
     gpx_track.segments.append(gpx_segment)
-    '''
+
+
     gpx.nsmap = {
-            'gpxx' : 'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
-            'gpxtpx' : 'http://www.garmin.com/xmlschemas/TrackPointExtension/v2',
-            'creator' : 'nuvi 1490',
+            'gpxtpx' : 'https://www.8garmin.com/xmlschemas/TrackPointExtension/v3',
+            #'creator' : 'nuvi 1490',
             'version' : '1.1',
             'xsi' : 'http://www.w3.org/2001/XMLSchema-instance',
+            'targetNamespace' : 'http://www.topografix.com/GPX/1/1',
+            'elementFormDefault' : 'qualified'
                 }
+
     gpx.schema_locations = [
            #'http://www.topografix.com/GPX/1/1',
            #'http://www.topografix.com/GPX/1/1/gpx.xsd',
            #'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
            #'http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd',
-
-
-
            'http://www.topografix.com/GPX/1/1',
            'http://www.topografix.com/GPX/1/1/gpx.xsd',
-           'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
-           'http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd',
-           'http://www.garmin.com/xmlschemas/TrackPointExtension/v2',
-           'http://www.garmin.com/xmlschemas/TrackPointExtensionv2.xsd'
+           'https://www.8garmin.com/xmlschemas/TrackPointExtension/v3',
+           'https://www.8garmin.com/xmlschemas/TrackPointExtensionv3.xsd'
         ]
-'''
+
 
 #GPX EXT TEST AREA
 '''
@@ -666,6 +670,7 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
 #GPX EXT TEST AREA
 
 ssec = 0
+ssec_old = 0
 k=0
 offset = 0
 
@@ -695,6 +700,7 @@ for c in range(int(duration)):
             f.write (ge  + '\n')
         #f.write (time + '\n')
         f.write ('\n')
+        ssec_old = ssec
         ssec=ssec+sdur
         continue
     fn = getfn()
@@ -715,7 +721,7 @@ for c in range(int(duration)):
     af=  getaf()
     time = gettime()
     ge = getge()
-    gps = getgps()
+    gps = getgps(ssec_old)
     c+=1
     f.write (str(c) +'\n')
     f.write (str(sampletime(ssec,sdur)) + '\n')
@@ -725,12 +731,12 @@ for c in range(int(duration)):
     if dist != 'N/A' :
         f.write ('Focus Distance: ' + dist + '\n') #'D.zoom: '+dz+'x '+ + '  ' + ge
     if gps != 'N/A' :
-        #print (gps)
         f.write ('GPS: ' + gps + '\n')
     if ge != 'N/A' :
         f.write (ge  + '\n')
     #f.write (time + '\n')
     f.write ('\n')
+    ssec_old = ssec
     ssec=ssec+sdur
     sys.stdout.write ('\rProcessed ' + str(c) + ' frames of ' + str(duration.decode()) + '   (' + str(round(samples[0]/8/(1000**2))) + 'MB  of ' + str(round(filesize/(1000**2))) + 'MB)')
     sys.stdout.flush()
@@ -760,7 +766,7 @@ print ('Success! SRT file created: ' + F[:-3]+'srt')
 if args.gpx and 'ExifGPS'.encode() in exifchk :
     print ('Writting GPX file')
     #print ('Created GPX:', gpx.to_xml())
-    with open(F[:-3]+'gpx', 'w') as outfile:
+    with open(F[:-3]+'GPX', 'w') as outfile:
         outfile.write(gpx.to_xml('1.1'))
     print ('Finished writting GPX file:', F[:-3]+'gpx')
 
