@@ -1,5 +1,6 @@
-# XAVC S video real-time meta-data parser
+# XAVC S video real-time meta-data parser and GPS data extractor
 Extract realtime meta-data (i.e. per-frame) from Sony XAVC video and render to srt subtitle file
+Extract GPS data (if video shot on GPS or Bluetooth-link enabled Sony camera) and extract to GPX file.
 
 ![alt text](ax700_meta_srt.jpg "Real-time shooting meta-data displayed in VLC over video")
 
@@ -41,7 +42,7 @@ Optional arguments:
 - **-gpx** - extract per-frame GPS meta-data and export to GPX file (track: latitude, longtitude, timestamp)
 - **-check** - display basic file check info. Camera model, fps, framecount, if GPS meta-data embedded
 
-Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-5100 videos.
+Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-5100 videos. GPS export works well with DashWare editor
 
 Written in: Python 3.7
 Required modules:
