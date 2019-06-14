@@ -18,6 +18,15 @@ from datetime import datetime, timedelta
 import argparse
 import gpxpy
 import gpxpy.gpx
+#import gpxpy.gpx as mod_gpx
+
+try:
+    import lxml.etree as mod_etree  # Load LXML or fallback to cET or ET
+except:
+    try:
+        import xml.etree.cElementTree as mod_etree
+    except:
+        import xml.etree.ElementTree as mod_etree
 
 
 parser = argparse.ArgumentParser(description='Extracts realtime meta-data from XAVC files and put to SRT (subtitle) file',)
@@ -443,7 +452,24 @@ def getgps():
         if args.gpx and 'ExifGPS'.encode() in exifchk :
             #print(gpxdate)
             #print (gpxdate[14:16])
-            gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)), time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19]))))
+
+
+            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)), time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19])))
+            gpx_segment.points.append(gpx_point)
+            #gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)), time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19]))))
+        #GPX EXT TEST AREA
+            namespace = '{gpxtx}'
+            nsmap = {'gpxtpx' : namespace[1:-1]} #
+            root = mod_etree.Element(namespace + 'TrackPointExtension')
+
+            subnode1 = mod_etree.SubElement(root, namespace + 'speed')
+            subnode2 = mod_etree.SubElement(root, namespace + 'course')
+            subnode1.text = str(float(x850d_1/x850d_2))
+            subnode2.text = (x850f)
+            #gpx_track = gpxpy.gpx.GPX()
+            gpx.nsmap = nsmap
+
+            gpx_point.extensions.append(root)
 
     except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return gps
@@ -593,6 +619,51 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
     # Create first segment in our GPX track:
     gpx_segment = gpxpy.gpx.GPXTrackSegment()
     gpx_track.segments.append(gpx_segment)
+    '''
+    gpx.nsmap = {
+            'gpxx' : 'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
+            'gpxtpx' : 'http://www.garmin.com/xmlschemas/TrackPointExtension/v2',
+            'creator' : 'nuvi 1490',
+            'version' : '1.1',
+            'xsi' : 'http://www.w3.org/2001/XMLSchema-instance',
+                }
+    gpx.schema_locations = [
+           #'http://www.topografix.com/GPX/1/1',
+           #'http://www.topografix.com/GPX/1/1/gpx.xsd',
+           #'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
+           #'http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd',
+
+
+
+           'http://www.topografix.com/GPX/1/1',
+           'http://www.topografix.com/GPX/1/1/gpx.xsd',
+           'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
+           'http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd',
+           'http://www.garmin.com/xmlschemas/TrackPointExtension/v2',
+           'http://www.garmin.com/xmlschemas/TrackPointExtensionv2.xsd'
+        ]
+'''
+
+#GPX EXT TEST AREA
+'''
+    namespace = '{gpx.py}'
+    nsmap = {'gpxtpx' : namespace[1:-1]}
+    root = mod_etree.Element(namespace + 'TrackPointExtension')
+    #root.text = ''
+    #root.tail = ''
+
+    subnode1 = mod_etree.SubElement(root, namespace + 'speed')
+    subnode1.text=''
+    subnode1.tail=''
+    subnode3 = mod_etree.SubElement(root, namespace + 'course')
+    subnode3.text=''
+    subnode3.tail=''
+
+    gpx.nsmap = nsmap
+
+    #gpx = gpxpy.gpx.GPX()
+'''
+#GPX EXT TEST AREA
 
 ssec = 0
 k=0
@@ -690,7 +761,7 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
     print ('Writting GPX file')
     #print ('Created GPX:', gpx.to_xml())
     with open(F[:-3]+'gpx', 'w') as outfile:
-        outfile.write(gpx.to_xml())
+        outfile.write(gpx.to_xml('1.1'))
     print ('Finished writting GPX file:', F[:-3]+'gpx')
 
 if args.muxmkv:
