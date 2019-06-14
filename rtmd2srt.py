@@ -452,7 +452,7 @@ def getgps(ssec_old):
 
         #write GPX. Filtered 1 point per 1 second of video
 
-        if (args.gpx and 'ExifGPS'.encode() in exifchk) and math.modf(ssec_old)[1] != math.modf(ssec)[1] :
+        if (args.gpx and 'ExifGPS'.encode() in exifchk) and math.modf(ssec_old)[0] > math.modf(ssec)[0] :
             #print(gpxdate)
             #print (gpxdate[14:16])
 
