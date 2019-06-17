@@ -323,178 +323,184 @@ DOP (?HDOP, VDOP, PDOP?)
 '''
 
 def getgps(old_dt):
-    k = sub.find('0x851200',bytealigned = True)
-    if len(k) == 0:
+#    k = sub.find('0x851200',bytealigned = True)
+#    if len(k) == 0:
+#        gps = 'N/A'
+#        return gps
+    sub.find('0x85000004',bytealigned = True)
+
+    sub.pos+=32
+    #read 0x850000 - GPS Ver
+    gpsver = sub.read(4*8)
+
+    sub.pos+=32
+    #read 0x8501 - Latitude Ref (N or S)
+    latref = BitArray(sub.read(8))
+    latref = latref.tobytes().decode('utf-8')
+    sub.pos+=32
+    # read 0x8502 - latiture (6 chunks)
+    l1 = sub.read(4*8).uint
+    l2 = sub.read(4*8).uint
+    l3 = sub.read(4*8).uint
+    l4 = sub.read(4*8).uint
+    l5 = sub.read(4*8).uint
+    l6 = sub.read(4*8).uint
+
+    if ( l2 == 0 or l4 == 0 or l6 == 0):
         gps = 'N/A'
         return gps
-    sub.find('0x850000',bytealigned = True)
-    try:
+
+    #write latitute string for text output
+    lat = str(l1/l2) + '°' + str(l3/l4) + "'" + str(float(l5)/float(l6)) + '"'
+    latdd = round((float(l1)/float(l2) + (float(l3)/float(l4))/60 + (float(l5)/float(l6)/(60*60)) * (-1 if latref in ['W', 'S'] else 1)), 7)
+
+    sub.pos+=32
+    #read 0x8503 - longtitude ref (E or W)
+    lonref = BitArray(sub.read(8))
+    lonref = lonref.tobytes().decode('utf-8')
+    # read 0x8504 - lontgiture (6 chunks)
+    sub.pos+=32
+    l1 = sub.read(4*8).uint
+    l2 = sub.read(4*8).uint
+    l3 = sub.read(4*8).uint
+    l4 = sub.read(4*8).uint
+    l5 = sub.read(4*8).uint
+    l6 = sub.read(4*8).uint
+
+    if ( l2 == 0 or l4 == 0 or l6 == 0):
+        gps = 'N/A'
+        return gps
+
+    #write latitute string for text output
+    lon = str(float(l1)/float(l2)) + '°' + str(float(l3)/float(l4)) + "'" + str(float(l5)/float(l6)) + '"'
+    londd = round((float(l1)/float(l2) + float(l3)/float(l4)/60 + (float(l5)/float(l6)/(60*60)) * (-1 if lonref in ['W', 'S'] else 1)), 7)
+    k = sub.find('0x85050001',bytealigned = True)
+    if len(k) != 0 :
         sub.pos+=32
-        #read 0x850000 - GPS Ver
-        gpsver = sub.read(4*8)
-
-        sub.pos+=32
-        #read 0x8501 - Latitude Ref (N or S)
-        latref = BitArray(sub.read(8))
-        latref = latref.tobytes().decode('utf-8')
-        sub.pos+=32
-        # read 0x8502 - latiture (6 chunks)
-        l1 = sub.read(4*8).uint
-        l2 = sub.read(4*8).uint
-        l3 = sub.read(4*8).uint
-        l4 = sub.read(4*8).uint
-        l5 = sub.read(4*8).uint
-        l6 = sub.read(4*8).uint
-
-        if ( l2 == 0 or l4 == 0 or l6 == 0):
-            gps = 'N/A'
-            return gps
-
-        #write latitute string for text output
-        lat = str(round(l1/l2)) + '°' + str(round(l3/l4)) + "'" + str((float(l5)/float(l6))) + '"'
-        latdd = round((float(l1)/float(l2) + (float(l3)/float(l4))/60 + (float(l5)/float(l6)/(60*60)) * (-1 if latref in ['W', 'S'] else 1)), 7)
-
-        sub.pos+=32
-        #read 0x8503 - longtitude ref (E or W)
-        lonref = BitArray(sub.read(8))
-        lonref = lonref.tobytes().decode('utf-8')
-        # read 0x8504 - lontgiture (6 chunks)
-        sub.pos+=32
-        l1 = sub.read(4*8).uint
-        l2 = sub.read(4*8).uint
-        l3 = sub.read(4*8).uint
-        l4 = sub.read(4*8).uint
-        l5 = sub.read(4*8).uint
-        l6 = sub.read(4*8).uint
-
-        if ( l2 == 0 or l4 == 0 or l6 == 0):
-            gps = 'N/A'
-            return gps
-
-        #write latitute string for text output
-        lon = str(round(float(l1)/float(l2))) + '°' + str(round(float(l3)/float(l4))) + "'" + str((float(l5)/float(l6))) + '"'
-        londd = round((float(l1)/float(l2) + (float(l3)/float(l4))/60 + (float(l5)/float(l6)/(60*60)) * (-1 if lonref in ['W', 'S'] else 1)), 7)
-        if sub.read(4*8) == '0x85050001' :
-            #read 0x8505 - 1 bytes = AltitudeRef (0 = above sea level, 1 = below sea level)
-            x8505 = sub.read (8).uint
-
-            sub.pos+=32
-            #read 0x8506 - 8 bytes ([4]/[4]) - Altitude
-            x8506_1 = sub.read(4*8).uint
-            x8506_2 = sub.read(4*8).uint
-
-            x8506 = str(float(x8506_1)/float(x8506_2))
-        else : x8505 = None
-
-        #sub.pos+=32
-        # read 0x8507 - timestamp (6 chunks)
-        l1 = sub.read(4*8).uint
-        l2 = sub.read(4*8).uint
-        l3 = sub.read(4*8).uint
-        l4 = sub.read(4*8).uint
-        l5 = sub.read(4*8).uint
-        l6 = sub.read(4*8).uint
-
-        if ( l2 == 0 or l4 == 0 or l6 == 0):
-            gps = 'N/A'
-            return gps
-        #write timestamp for text output (hh:mm:ss.xxx)
-        gpsts = str(int(float(l1)/float(l2))).zfill(2) + ':' + str(int(float(l3)/float(l4))).zfill(2) + ":" + str(int(float(l5)/float(l6))).zfill(2)
-        #print (gpsts)
+        #read 0x8505 - 1 bytes = AltitudeRef (0 = above sea level, 1 = below sea level)
+        x8505 = sub.read (8).uint
 
         sub.pos+=32
-        #read 0x8509 - GPS fix STATUS (not used yet)
-        gpsfix = BitArray(sub.read(8))
-        gpsfix = gpsfix.tobytes().decode('utf-8')
+        #read 0x8506 - 8 bytes ([4]/[4]) - Altitude
+        x8506_1 = sub.read(4*8).uint
+        x8506_2 = sub.read(4*8).uint
+
+        x8506 = str(float(x8506_1)/float(x8506_2))
+    else : x8505 = None
+
+    sub.pos+=32
+    # read 0x8507 - timestamp (6 chunks)
+    l1 = sub.read(4*8).uint
+    l2 = sub.read(4*8).uint
+    l3 = sub.read(4*8).uint
+    l4 = sub.read(4*8).uint
+    l5 = sub.read(4*8).uint
+    l6 = sub.read(4*8).uint
+
+    if ( l2 == 0 or l4 == 0 or l6 == 0):
+        gps = 'N/A'
+        return gps
+    #write timestamp for text output (hh:mm:ss.xxx)
+    gpsts = str(int(float(l1)/float(l2))).zfill(2) + ':' + str(int(float(l3)/float(l4))).zfill(2) + ":" + str(int(float(l5)/float(l6))).zfill(2)
+    #print (gpsts)
+
+    sub.pos+=32
+    #read 0x8509 - GPS fix STATUS (not used yet)
+    gpsfix = BitArray(sub.read(8))
+    gpsfix = gpsfix.tobytes().decode('utf-8')
+
+    sub.pos+=32
+    # read 0x850a - GPS Measure mode (2 = 2D, 3 = 3D) - not used yet
+    gpsmeasure = BitArray(sub.read(8))
+    gpsmeasure = gpsmeasure.tobytes().decode('utf-8')
+
+    sub.pos+=32
+    #read 0x850b -  8 bytes ([4]/[4]) -- DOP -not used yet
+    x850b_1 = sub.read(4*8).uint
+    x850b_2 = sub.read(4*8).uint
+
+    x850b = str(float(x850b_1)/float(x850b_2))
+
+    if sub.read(4*8) == '0x850c0001' :
+        #read 0x850c -  1 byte - SpeedRef (K = km/h, M = mph, N = knots)
+        x850c = BitArray(sub.read(8))
+        x850c = x850c.tobytes().decode('utf-8')
 
         sub.pos+=32
-        # read 0x850a - GPS Measure mode (2 = 2D, 3 = 3D) - not used yet
-        gpsmeasure = BitArray(sub.read(8))
-        gpsmeasure = gpsmeasure.tobytes().decode('utf-8')
+        #read 0x850d - 8 bytes ([4]/[4]???) - SPEED
+        x850d_1 = sub.read(4*8).uint
+        x850d_2 = sub.read(4*8).uint
+
+        x850d = round(float(x850d_1)/float(x850d_2),2)
+    else : x850d = 'N/A'
+
+    if sub.read(4*8) == '0x850e0001' :
+        #read 0x850e - 1 byte - TrackRef (Direction Reference, T = True direction, M = Magnetic direction)
+        x850e = BitArray(sub.read(8))
+        x850e = x850e.tobytes().decode('utf-8')
 
         sub.pos+=32
-        #read 0x850b -  8 bytes ([4]/[4]) -- DOP -not used yet
-        x850b_1 = sub.read(4*8).uint
-        x850b_2 = sub.read(4*8).uint
+        #read 0x850f - Course 8 bytes ([4]/[4]) (degrees from 0.0 to 359.99)
+        x850f_1 = sub.read(4*8).uint
+        x850f_2 = sub.read(4*8).uint
 
-        x850b = str(float(x850b_1)/float(x850b_2))
+        x850f = round(float(x850f_1)/float(x850f_2),2)
+    else : x850f = 'N/A'
 
-        if sub.read(4*8) == '0x850c0001' :
-            #read 0x850c -  1 byte - SpeedRef (K = km/h, M = mph, N = knots)
-            x850c = BitArray(sub.read(8))
-            x850c = x850c.tobytes().decode('utf-8')
+    #write full lat + lon + timestamp for text output
 
-            sub.pos+=32
-            #read 0x850d - 8 bytes ([4]/[4]???) - SPEED
-            x850d_1 = sub.read(4*8).uint
-            x850d_2 = sub.read(4*8).uint
-
-            x850d = str(round(float(x850d_1)/float(x850d_2)),2)
-        else : x850d = 'N/A'
-
-        if sub.read(4*8) == '0x850e0001' :
-            #read 0x850e - 1 byte - TrackRef (Direction Reference, T = True direction, M = Magnetic direction)
-            x850e = BitArray(sub.read(8))
-            x850e = x850e.tobytes().decode('utf-8')
-
-            sub.pos+=32
-            #read 0x850f - Course 8 bytes ([4]/[4]) (degrees from 0.0 to 359.99)
-            x850f_1 = sub.read(4*8).uint
-            x850f_2 = sub.read(4*8).uint
-
-            x850f = str(round(float(x850f_1)/float(x850f_2)),2)
-        else : x850f = 'N/A'
-
-        #write full lat + lon + timestamp for text output
+    if latref == None or lonref == None : gps = 'N/A'
+    else :
         gps = lat + str(latref) + ' ' + lon + str(lonref) + ' ' + gpsts
-        # debug
-        #gps = gps + '\n' +str(x8505) + ' ' + str(x8506) + ' ' + str(gpsfix) + ' ' + str(gpsmeasure) + ' ' + str(x850b) + ' ' + str(x850c) + ' ' + str(x850d) + ' ' + str(x850e) + ' ' + str(x850f)
-        if x850d != 'N/A' and x850f != 'N/A' :
-            gps = gps + '\n' 'Speed: ' + x850d + 'km/h   Course: ' + x850f
+    # debug
+    #gps = gps + '\n' +str(x8505) + ' ' + str(x8506) + ' ' + str(gpsfix) + ' ' + str(gpsmeasure) + ' ' + str(x850b) + ' ' + str(x850c) + ' ' + str(x850d) + ' ' + str(x850e) + ' ' + str(x850f)
+    if x850d != 'N/A' or x850f != 'N/A' :
+        gps = gps + '\n' 'Speed: ' + str(x850d) + 'km/h   Course: ' + str(x850f)
 
-        k = sub.find('0x851d000a',bytealigned = True)
-        sub.pos+=32
-        gpxdate = BitArray(sub.read(8*10))
-        gpxdate = gpxdate.tobytes().decode('utf-8')
-        gpxdate = gpxdate.replace(':','-')
-        gpxdate = gpxdate + 'T' + gpsts + 'Z'
-        dt = datetime.strptime(gpxdate, '%Y-%m-%dT%H:%M:%SZ')
+    k = sub.find('0x851d000a',bytealigned = True)
+    sub.pos+=32
+    gpxdate = BitArray(sub.read(8*10))
+    gpxdate = gpxdate.tobytes().decode('utf-8')
+    gpxdate = gpxdate.replace(':','-')
+    gpxdate = gpxdate + 'T' + gpsts + 'Z'
+    dt = datetime.strptime(gpxdate, '%Y-%m-%dT%H:%M:%SZ')
 
+    #print (lat,lon, x850d, x850f)
 
-        #write GPX.
+    #write GPX.
 
-        if (args.gpx and 'ExifGPS'.encode() in exifchk) and old_dt < dt.timestamp() :
-            if x8505 != None:
-                gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)),
-                time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
-            else :
-                gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd,
-                time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
-            gpx_segment.points.append(gpx_point)
+    if (args.gpx and 'ExifGPS'.encode() in exifchk) and old_dt < dt.timestamp() :
+        if x8505 != None:
+            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)),
+            time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
+        else :
+            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd,
+            time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
+        gpx_segment.points.append(gpx_point)
 
-        #GPX EXT TEST AREA
+    #GPX EXT TEST AREA
 
-            namespace = '{gpxtx}'
-            nsmap = {'gpxtpx' : namespace[1:-1]} #
-            root = mod_etree.Element(namespace + 'TrackPointExtension')
+        namespace = '{gpxtx}'
+        nsmap = {'gpxtpx' : namespace[1:-1]} #
+        root = mod_etree.Element(namespace + 'TrackPointExtension')
 
-            subnode1 = mod_etree.SubElement(root, namespace + 'speed')
-            subnode2 = mod_etree.SubElement(root, namespace + 'course')
-            if x850d != 'N/A' and x850c == 'K':
-                subnode1.text = str(x850d_1/x850d_2/3.6)
-            elif x850d != 'N/A' and x850c == 'M':
-                subnode1.text = str(x850d_1/x850d_2/2.23694)
-            elif x850d != 'N/A' and x850c == 'N':
-                subnode1.text = str(x850d_1/x850d_2/1.94384)
+        subnode1 = mod_etree.SubElement(root, namespace + 'speed')
+        subnode2 = mod_etree.SubElement(root, namespace + 'course')
+        if x850d != 'N/A' and x850c == 'K':
+            subnode1.text = str(round(x850d_1/x850d_2/3.6,2))
+        elif x850d != 'N/A' and x850c == 'M':
+            subnode1.text = str(round(x850d_1/x850d_2/2.23694,2))
+        elif x850d != 'N/A' and x850c == 'N':
+            subnode1.text = str(round(x850d_1/x850d_2/1.94384,2))
 
-            if x850f != 'N/A' :
-                subnode2.text = (x850f)
-            gpx.nsmap = nsmap
-            if x850d != 'N/A' and x850f != 'N/A' :
-                gpx_point.extensions.append(root)
-            old_dt = dt.timestamp()
+        if x850f != 'N/A' :
+            subnode2.text = str(x850f)
+        gpx.nsmap = nsmap
+        if x850d != 'N/A' or x850f != 'N/A' :
+            gpx_point.extensions.append(root)
+        old_dt = dt.timestamp()
 
-    except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
+#    except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return gps, old_dt
 
 def sampletime (ssec,sdur):
@@ -756,7 +762,8 @@ for c in range(int(duration)):
     #f.write (time + '\n') - timestamp (swiched off)
     f.write ('\n')
     if gps != 'N/A' :
-        old_dt = gps[1]
+        #print (gps)
+        old_dt = float(gps[1])
     ssec=ssec+sdur
     sys.stdout.write ('\rProcessed ' + str(c) + ' frames of ' + str(duration.decode()) + '   (' + str(round(samples[0]/8/(1000**2))) + 'MB  of ' + str(round(filesize/(1000**2))) + 'MB)')
     sys.stdout.flush()
@@ -790,5 +797,9 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
         outfile.write(gpx.to_xml('1.1'))
     print ('Finished writting GPX file:', F[:-3]+'GPX')
 
+
+
 if args.muxmkv:
     opt_muxmkv()
+
+sys.exit()
