@@ -746,7 +746,9 @@ for c in range(int(duration)):
     af=  getaf()
     time = gettime()
     ge = getge()
-    gps = getgps(old_dt)
+    if (args.gpx and 'ExifGPS'.encode() in exifchk) :
+        gps = getgps(old_dt)
+    else : gps = 'N/A'
     c+=1
     f.write (str(c) +'\n')
     f.write (str(sampletime(ssec,sdur)) + '\n')
