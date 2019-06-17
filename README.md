@@ -1,5 +1,6 @@
 # XAVC S video real-time meta-data parser and GPS data extractor
-Extract realtime meta-data (i.e. per-frame) from Sony XAVC video and render to srt subtitle file
+Extract realtime meta-data (i.e. per-frame) from Sony XAVC video and render to srt subtitle file.
+
 Extract GPS data (if video shot on GPS or Bluetooth-link enabled Sony camera) and extract to GPX file.
 
 ![alt text](ax700_meta_srt.jpg "Real-time shooting meta-data displayed in VLC over video")
