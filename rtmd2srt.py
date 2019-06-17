@@ -379,7 +379,7 @@ def getgps(old_dt):
             x8505 = sub.read (8).uint
 
             sub.pos+=32
-            #read 0x8506 - 8 bytes ([4]/[4]???) - Altitude
+            #read 0x8506 - 8 bytes ([4]/[4]) - Altitude
             x8506_1 = sub.read(4*8).uint
             x8506_2 = sub.read(4*8).uint
 
@@ -403,17 +403,17 @@ def getgps(old_dt):
         #print (gpsts)
 
         sub.pos+=32
-        #read 0x8509 - GPS fix STATUS
+        #read 0x8509 - GPS fix STATUS (not used yet)
         gpsfix = BitArray(sub.read(8))
         gpsfix = gpsfix.tobytes().decode('utf-8')
 
         sub.pos+=32
-        # read 0x850a - GPS Measure mode (2 = 2D, 3 = 3D)
+        # read 0x850a - GPS Measure mode (2 = 2D, 3 = 3D) - not used yet
         gpsmeasure = BitArray(sub.read(8))
         gpsmeasure = gpsmeasure.tobytes().decode('utf-8')
 
         sub.pos+=32
-        #read 0x850b -  8 bytes ([4]/[4]???) -- DOP
+        #read 0x850b -  8 bytes ([4]/[4]) -- DOP -not used yet
         x850b_1 = sub.read(4*8).uint
         x850b_2 = sub.read(4*8).uint
 
@@ -421,7 +421,6 @@ def getgps(old_dt):
 
         if sub.read(4*8) == '0x850c0001' :
             #read 0x850c -  1 byte - SpeedRef (K = km/h, M = mph, N = knots)
-            #x850c = sub.read(8).uint
             x850c = BitArray(sub.read(8))
             x850c = x850c.tobytes().decode('utf-8')
 
@@ -435,12 +434,11 @@ def getgps(old_dt):
 
         if sub.read(4*8) == '0x850e0001' :
             #read 0x850e - 1 byte - TrackRef (Direction Reference, T = True direction, M = Magnetic direction)
-            #x850e = sub.read(8).uint
             x850e = BitArray(sub.read(8))
             x850e = x850e.tobytes().decode('utf-8')
 
             sub.pos+=32
-            #read 0x850f - Direction 8 bytes ([4]/[4]???) (degrees from 0.0 to 359.99)
+            #read 0x850f - Course 8 bytes ([4]/[4]) (degrees from 0.0 to 359.99)
             x850f_1 = sub.read(4*8).uint
             x850f_2 = sub.read(4*8).uint
 
@@ -463,24 +461,17 @@ def getgps(old_dt):
         dt = datetime.strptime(gpxdate, '%Y-%m-%dT%H:%M:%SZ')
 
 
-        #write GPX. Filtered 1 point per 1 second of video
+        #write GPX.
 
         if (args.gpx and 'ExifGPS'.encode() in exifchk) and old_dt < dt.timestamp() :
-            #print(gpxdate)
-            #print (gpxdate[14:16])
-
             if x8505 != None:
                 gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)),
-                #time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19])))
                 time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
-
             else :
                 gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd,
-                #time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19])))
                 time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
-
             gpx_segment.points.append(gpx_point)
-            #gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)), time=datetime(int(gpxdate[0:4]),int(gpxdate[6:7]),int(gpxdate[8:10]),int(gpxdate[11:13]),int(gpxdate[14:16]),int(gpxdate[17:19]))))
+
         #GPX EXT TEST AREA
 
             namespace = '{gpxtx}'
@@ -489,16 +480,20 @@ def getgps(old_dt):
 
             subnode1 = mod_etree.SubElement(root, namespace + 'speed')
             subnode2 = mod_etree.SubElement(root, namespace + 'course')
-            if x850d != 'N/A' :
+            if x850d != 'N/A' and x850c == 'K':
                 subnode1.text = str(x850d_1/x850d_2/3.6)
+            elif x850d != 'N/A' and x850c == 'M':
+                subnode1.text = str(x850d_1/x850d_2/2.23694)
+            elif x850d != 'N/A' and x850c == 'N':
+                subnode1.text = str(x850d_1/x850d_2/1.94384)
+
             if x850f != 'N/A' :
                 subnode2.text = (x850f)
-            #gpx_track = gpxpy.gpx.GPX()
             gpx.nsmap = nsmap
-
-            gpx_point.extensions.append(root)
-
+            if x850d != 'N/A' and x850f != 'N/A' :
+                gpx_point.extensions.append(root)
             old_dt = dt.timestamp()
+
     except (bitstring.ReadError, UnicodeDecodeError) : return 'N/A'
     return gps, old_dt
 
@@ -520,7 +515,7 @@ def opt_sidecar():
     print ('Extracting sidecar...')
     pos = s.find('0x3C3F786D6C',bytealigned=True)
     if pos == ():
-        print ('Error: No embedded Non-Realtime Metadata XML found!')
+        print ('Error: No embedded Non-Realtime Metadata XML part found in file!')
         return
     endpos = s.find('0x3C2F4E6F6E5265616C54696D654D6574613E',bytealigned=True)
     sidecar = s[pos[0]:(endpos[0]+18*8)]
@@ -554,9 +549,10 @@ if s[:96] != '0x0000001C6674797058415643' :
     print ('No XAVC type tag detected. Please user original XAVC MP4 file. Exiting.')
     sys.exit()
 
-### NRT_Acquire START ###
+### Get filesize ###
 filesize = os.path.getsize(F)
 
+#check for mdat atom tag
 sampl_check = s.find('0x6D646174000000', bytealigned=True)
 if len(sampl_check) != 0:
     #s.bytepos+=13
@@ -621,8 +617,8 @@ print ('Model Name:', vendor.decode(), modelname.decode())
 print ('Video duration (frames):', duration.decode())
 print ('Framerate:', float(ts)/float(sd))
 print ('Video duration (sec):', float(duration.decode())/(float(ts)/float(sd)))
-if 'ExifGPS'.encode() in exifchk : print ('ExifGPS group detected in non-realtime meta-data section. GPX Track extraction possible.')
-if args.gpx and 'ExifGPS'.encode() in exifchk : print ('-gpx argument specified. Will extract GPX track.')
+if 'ExifGPS'.encode() in exifchk : print ('ExifGPS group detected in non-realtime meta-data section. GPX Track extraction possible with "-gpx" argument.')
+if args.gpx and 'ExifGPS'.encode() in exifchk : print ('"-gpx" argument specified. Will extract GPX track.')
 
 if args.sidecar == True:
     opt_sidecar()
@@ -650,8 +646,7 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
 
 
     gpx.nsmap = {
-            'gpxtpx' : 'https://www.8garmin.com/xmlschemas/TrackPointExtension/v3',
-            #'creator' : 'nuvi 1490',
+            'gpxtpx' : 'https://www.8garmin.com/xmlschemas/TrackPointExtension/v2',
             'version' : '1.1',
             'xsi' : 'http://www.w3.org/2001/XMLSchema-instance',
             'targetNamespace' : 'http://www.topografix.com/GPX/1/1',
@@ -659,8 +654,6 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
                 }
 
     gpx.schema_locations = [
-           #'http://www.topografix.com/GPX/1/1',
-           #'http://www.topografix.com/GPX/1/1/gpx.xsd',
            #'http://www.garmin.com/xmlschemas/GpxExtensions/v3',
            #'http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd',
            'http://www.topografix.com/GPX/1/1',
@@ -670,8 +663,8 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
         ]
 
 
-#GPX EXT TEST AREA
-
+#GPX EXT TEST AREA - to delete
+"""
     namespace = '{gpx.py}'
     nsmap = {'gpxtpx' : namespace[1:-1]}
     root = mod_etree.Element(namespace + 'TrackPointExtension')
@@ -686,9 +679,7 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
     subnode3.tail=''
 
     gpx.nsmap = nsmap
-
-    #gpx = gpxpy.gpx.GPX()
-
+"""
 #GPX EXT TEST AREA
 
 ssec = 0
@@ -707,7 +698,7 @@ for c in range(int(duration)):
     i = samples[0]
     sub = s[i:(i+1024*8)]
 
-    #if '0x060e2b340401010b05100101' not in sub :
+    #skip if no XAVC S timestamp tag in block :
     if '0xe3040008' not in sub :
         """
         c+=1
@@ -730,7 +721,7 @@ for c in range(int(duration)):
         ssec=ssec+sdur
         """
         continue
-
+    #get metadata
     fn = getfn()
     dist=getdist()
     ss=  getss()
@@ -741,7 +732,7 @@ for c in range(int(duration)):
         iso = 'ISO: ' + str(iso)
 
     db = getdb()
-    #dz = getdz()
+    #dz = getdz() --- digital zoom (turned off now)
     ae=  getpasm()
     if ae == 'N/A':
         ae = ''
@@ -762,7 +753,7 @@ for c in range(int(duration)):
         f.write ('GPS: ' + gps[0] + '\n')
     if ge != 'N/A' :
         f.write (ge  + '\n')
-    #f.write (time + '\n')
+    #f.write (time + '\n') - timestamp (swiched off)
     f.write ('\n')
     if gps != 'N/A' :
         old_dt = gps[1]
