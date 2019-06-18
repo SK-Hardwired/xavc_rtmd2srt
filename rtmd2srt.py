@@ -396,7 +396,6 @@ def getgps(old_dt):
     l4 = sub.read(4*8).uint
     l5 = sub.read(4*8).uint
     l6 = sub.read(4*8).uint
-
     if ( l2 == 0 or l4 == 0 or l6 == 0):
         gps = 'N/A'
         return gps
