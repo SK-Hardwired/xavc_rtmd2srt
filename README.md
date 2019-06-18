@@ -11,6 +11,8 @@ Looks like this feature partially inherited by XAVC S from professional Sony XAV
 
 This tool tries to extract this meta-data from XAVC S (MP4) file and create SRT subtitle file near the video file. When opened in VLC or whatever, it can be viewed and you can see the settings of camera for every frame of video in real time.
 
+![alt text](dashboard_video_example.jpg "Example of HDR-AS100V video with DashWare app using extracted GPX track")
+
 If video file has embedded GPS data (for example, Sony Action Cam record with built-in GPS or ILCE/RX with Bluetooth GPS link option used) you can extract GPS track to GPX. You may use it with GPS visualization apps/services to see your travel or with dashboard-overlay video editors to have nice gauges in your videos.
 
 Meta-data supported:
