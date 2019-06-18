@@ -11,6 +11,8 @@ Looks like this feature partially inherited by XAVC S from professional Sony XAV
 
 This tool tries to extract this meta-data from XAVC S (MP4) file and create SRT subtitle file near the video file. When opened in VLC or whatever, it can be viewed and you can see the settings of camera for every frame of video in real time.
 
+If video file has embedded GPS data (for example, Sony Action Cam record with built-in GPS or ILCE/RX with Bluetooth GPS link option used) you can extract GPS track to GPX. You may use it with GPS visualization apps/services to see your travel or with dashboard-overlay video editors to have nice gauges in your videos.
+
 Meta-data supported:
 - ISO (N/A for most of camcorders and older ILCE/RX cameras)
 - Gain (dB)
@@ -22,7 +24,7 @@ Meta-data supported:
 - Capture Gamma / ColorSpace (looks like it is fixed on first frame; meta-data not changed if Picture Profile changed on camera during recording)
 - recording date and time in YYYY/MM/DD HH/MM/SS format as it is set in camera settings (**output disabled yet**)
 - timecode (N/A for models w/o timecode fieature; **output not implemented yet**)
-- GPS coords, timestamp, speed, elevation, heading (if available)
+- GPS coords, timestamp, elevation, [speed, heading] (if available)
 
 Meta-data not supported (as no any existing consumer camera models record it):
 - lens focal length, zoom position
@@ -32,8 +34,6 @@ Meta-data not supported (as no any existing consumer camera models record it):
 - built-in camera/lens color/ND filters value
 - gamma curve/knee formulas/params (as these are also important for very pro video/cinema cameras)
 
-To do:
-- implement speed and heading export to GPX file (may be using Garmin GPX extensions)
 
 Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 required argument (full video file path or just file name if in the same folder)
 Example: **rtmd2srt.exe D:\Video\C0035.MP4**
