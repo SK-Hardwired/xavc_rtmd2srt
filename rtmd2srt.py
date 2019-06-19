@@ -470,10 +470,10 @@ def getgps(old_dt):
 
     if (args.gpx and 'ExifGPS'.encode() in exifchk) and old_dt < dt.timestamp() :
         if x8505 != None:
-            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, elevation=(float(x8506) * (-1 if x8505 == 1 else 1)),
+            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, position_dilution = x850b, type_of_gpx_fix = (gpsmeasure+'d'),  elevation=(float(x8506) * (-1 if x8505 == 1 else 1)),
             time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
         else :
-            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd,
+            gpx_point = gpxpy.gpx.GPXTrackPoint(latdd, londd, position_dilution = x850b, type_of_gpx_fix = (gpsmeasure+'d'),
             time=datetime(dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second))
         gpx_segment.points.append(gpx_point)
 
