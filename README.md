@@ -26,7 +26,7 @@ Meta-data supported:
 - Capture Gamma / ColorSpace (looks like it is fixed on first frame; meta-data not changed if Picture Profile changed on camera during recording)
 - recording date and time in YYYY/MM/DD HH/MM/SS format as it is set in camera settings (**output disabled yet**)
 - timecode (N/A for models w/o timecode fieature; **output not implemented yet**)
-- GPS coords, timestamp, elevation, [speed, heading] (if available)
+- GPS coords, timestamp, elevation, DOP, GPSFix, [speed, heading] (if available)
 
 Meta-data not supported (as no any existing consumer camera models record it):
 - lens focal length, zoom position
@@ -34,15 +34,16 @@ Meta-data not supported (as no any existing consumer camera models record it):
 - white balance value in Kelvin (probably this tag recorded in RAW-cabable video/cinema cameras, e.g. CineAlta)
 - sensor readout mode and parameters (x,y resolution, dynamic range)
 - built-in camera/lens color/ND filters value
-- gamma curve/knee formulas/params (as these are also important for very pro video/cinema cameras)
+- gamma curve/knee formulas/coefficients (as these are also important for very pro video/cinema cameras)
 
 
 Windows x64 executable available (see zip file in files list). Usage: as any console app, accepts 1 required argument (full video file path or just file name if in the same folder)
 Example: **rtmd2srt.exe D:\Video\C0035.MP4**
+
 Optional arguments:
 - **-sidecar** - extract embedded XML non-realtime metadata (similar to XML sidecar recorded by camera)
 - **-muxmkv** - create new MKV file with embedded subtitles stream with meta-data (requires **ffmpeg.exe** to be in same folder)
-- **-gpx** - extract per-frame GPS meta-data and export to GPX file (track: latitude, longtitude, timestamp)
+- **-gpx** - extract per-frame GPS meta-data and export to GPX file (track: latitude, longtitude, timestamp, speed, DOP, gps_fix(2d/3d), course)
 - **-check** - display basic file check info. Camera model, fps, framecount, if GPS meta-data embedded
 
 Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-5100 videos. GPS export works well with DashWare editor
