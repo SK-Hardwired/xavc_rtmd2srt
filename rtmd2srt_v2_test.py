@@ -101,11 +101,11 @@ RDD 18 tags from Mediainfo MXF parser (https://github.com/MediaArea/MediaInfoLib
 0xE000: UDAM ID (10 bytes) ???
 
 unkn tags
-E3 00 - 1 byte - in XAVC S always = 00
-E3 01 - 4 bytes - ISO?
-E3 02 - 1 byte - in XAVC S always = 01
-E3 03 - 1 byte - in XAVC S always = FF (255)
-E3 04 - 8 bytes - Current record date and time in YY-YY-MM-DD-HH-MM-SS format
+E300 - 1 byte - in XAVC S always = 00
+E301 - 4 bytes - ISO?
+E302 - 1 byte - in XAVC S always = 01
+E303 - 1 byte - in XAVC S always = FF (255)
+E304 - 8 bytes - Current record date and time in YY-YY-MM-DD-HH-MM-SS format
 
 
 
