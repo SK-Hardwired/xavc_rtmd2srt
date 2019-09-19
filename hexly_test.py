@@ -11,7 +11,8 @@ init(autoreset=True)
 from colorama import Fore, Back, Style
 
 #RTMD READ
-filename = 'C:\\MyWork\\temp\\acam\\C0002_track3.rtmd'
+#filename = 'F:\\Skiba_video\\C0012_track3.rtmd'
+filename = "F:\PRIVATE\M4ROOT\CLIP\C0004_track3.rtmd"
 rtmd_size = 1024*3
 prev = [None]*rtmd_size
 s=""

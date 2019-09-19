@@ -147,7 +147,7 @@ def getdist():
 csv1 = []
 csv2 = []
 
-def gettable1():
+def get_gyro():
     k=sub.find('0xe43b',bytealigned = True)
     if len(k) == 0 :
         dist = 'N/A'
@@ -157,27 +157,72 @@ def gettable1():
         rows = sub.read('int:32')
         sets = sub.read('int:32')
         #os.system('cls')
-        sys.stdout.write ('\rFrame: '+str(c))
+        #sys.stdout.write ('\rFrame: '+str(c))
         for i in range(rows):
             #a1e = sub.read('int:4')
-            a1 = sub.read('intbe:16')
+            pitch = sub.read('intbe:16')
             #a2e = sub.read('int:4')
-            a2 = sub.read('intbe:16')
+            roll = sub.read('intbe:16')
             #a3e = sub.read('int:4')
-            a3 = sub.read('intbe:16')
+            yaw = sub.read('intbe:16')
 
             #print("a1 =",round(float(a1*(10**a1e)),3), "a2 =",round(float(a2*(10**a2e)),3), "a3 =",round(float(a3*(10**a3e)),3))
             #print("a2 =",float(a2*(10**a2e)))
             #print("a3 =",float(a3*(10**a3e)))
             #csv1.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
-            csv1.append(str(c)+'|'+str(a1)+"|"+str(a2)+"|"+str(a3))
-            print (a1,a2,a3)
+            csv1.append(str(c)+'|'+str(pitch)+"|"+str(roll)+"|"+str(yaw))
+            #print (a1,a2,a3)
 
 
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
-def gettable2():
+def get_0xe437():
+    k=sub.find('0xe437',bytealigned = True)
+    if len(k) == 0 :
+        dist = 'N/A'
+        return dist
+    try:
+        sub.pos+=32
+        rows = sub.read('int:32')
+        sys.stdout.write ('\n0x0437 =' + str(rows))
+
+    except (bitstring.ReadError, ValueError) : return 'N/A'
+    return None
+
+def get_0xe447():
+    k=sub.find('0xe447',bytealigned = True)
+    if len(k) == 0 :
+        dist = 'N/A'
+        return dist
+    try:
+        sub.pos+=32
+        rows = sub.read('int:32')
+        sys.stdout.write ('    0x0447 =' + str(rows))
+
+    except (bitstring.ReadError, ValueError) : return 'N/A'
+    return None
+
+def get_0xe416():
+    k=sub.find('0xe416',bytealigned = True)
+    if len(k) == 0 :
+        dist = 'N/A'
+        return dist
+    try:
+        sub.pos+=32
+        rows = sub.read('int:32')
+        sets = sub.read('int:32')
+
+        for i in range(rows):
+            for k in range (int(sets/4)):
+                sys.stdout.write(str(sub.read('intbe:32'))+' ')
+            sys.stdout.write('\n')
+        print()
+
+    except (bitstring.ReadError, ValueError) : return 'N/A'
+    return None
+
+def get_accel():
     k=sub.find('0xe44b',bytealigned = True)
     if len(k) == 0 :
         dist = 'N/A'
@@ -187,21 +232,21 @@ def gettable2():
         rows = sub.read('int:32')
         sets = sub.read('int:32')
         #os.system('cls')
-        sys.stdout.write ('\rFrame: '+str(c))
+        #sys.stdout.write ('\rFrame: '+str(c))
         for i in range(rows):
             #a1e = sub.read('int:4')
-            b1 = sub.read('intbe:16')
+            x = sub.read('intbe:16')
             #a2e = sub.read('int:4')
-            b2 = sub.read('intbe:16')
+            y = sub.read('intbe:16')
             #a3e = sub.read('int:4')
-            b3 = sub.read('intbe:16')
+            z = sub.read('intbe:16')
 
             #print("a1 =",round(float(a1*(10**a1e)),3), "a2 =",round(float(a2*(10**a2e)),3), "a3 =",round(float(a3*(10**a3e)),3))
             #print("a2 =",float(a2*(10**a2e)))
             #print("a3 =",float(a3*(10**a3e)))
             #csv1.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
-            csv2.append(str(c)+'|'+str(b1)+"|"+str(b2)+"|"+str(b3))
-            print (b1,b2,b3)
+            csv2.append(str(c)+'|'+str(x)+"|"+str(y)+"|"+str(z))
+            #print (b1,b2,b3)
 
 
     except (bitstring.ReadError, ValueError) : return 'N/A'
@@ -759,7 +804,7 @@ k=0
 offset = 0
 old_dt = 0
 
-if modelname.decode() in ('DSC-RX0M2','ILCE-7RM4','DSC-RX100M7'):
+if modelname.decode() in ('DSC-RX0M2','ILCE-7RM4','DSC-RX100M7','MODEL-NAME'):
     block_length = 1024*8*3
 else:
     block_length = 1024*8
@@ -799,8 +844,13 @@ for c in range(int(duration)):
         continue
     fn = getfn()
     dist=getdist()
-    gettable1()
-    gettable2()
+
+    get_0xe416()
+
+    get_gyro()
+    get_accel()
+    #get_0xe437()
+    #get_0xe447()
     ss=  getss()
     iso= getiso()
     if iso == 'N/A':
