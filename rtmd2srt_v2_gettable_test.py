@@ -146,6 +146,7 @@ def getdist():
 
 csv1 = []
 csv2 = []
+csv3 = []
 
 def get_gyro():
     k=sub.find('0xe43b',bytealigned = True)
@@ -214,11 +215,7 @@ def get_0xe416():
         sets = sub.read('int:32')
 
         for i in range(rows):
-            for k in range (int(sets/4)):
-                sys.stdout.write(str(sub.read('intbe:32'))+' ')
-            sys.stdout.write('\n')
-        print()
-
+            csv3.append(str(c)+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32')))
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
@@ -931,6 +928,11 @@ print ('Finished writting CSV file 1')
 
 with open(F[:-4]+'_table2.csv', 'w') as outfile:
     for line in csv2:
+        outfile.write(line+'\n')
+print ('Finished writting CSV file 2')
+
+with open(F[:-4]+'_table3.csv', 'w') as outfile:
+    for line in csv3:
         outfile.write(line+'\n')
 print ('Finished writting CSV file 2')
 
