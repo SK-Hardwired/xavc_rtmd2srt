@@ -204,8 +204,22 @@ def get_0xe447():
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
+def get_0xe409():
+    k=sub.find('0xe409',bytealigned = True)
+    if len(k) == 0 :
+        dist = 'N/A'
+        return dist
+    try:
+        sub.pos+=32
+
+        #print ('0x0409 = ' + str(sub.read('int:32')) + '   '+ str(sub.read('int:32')))
+
+    except (bitstring.ReadError, ValueError) : return 'N/A'
+    return None
+
 def get_0xe416():
     k=sub.find('0xe416',bytealigned = True)
+    set = []
     if len(k) == 0 :
         dist = 'N/A'
         return dist
@@ -214,8 +228,21 @@ def get_0xe416():
         rows = sub.read('int:32')
         sets = sub.read('int:32')
 
+        for i in range (rows):
+            set=[]
+            for k in range (int(sets/4)):
+                #fn= 2**((1-float(sub.read('uint:16'))/65536)*8)
+                #fn=round(fn,1)
+                set.append(sub.read('int:32'))
+            #csv3.append(str(c)+'|'+str(set[0])+'|'+str(set[1])+'|'+str(set[2])+'|'+str(set[3])+'|'+str(set[4])+'|'+str(set[5])+'|'+str(set[6])+'|'+str(set[7]))
+            csv3.append(str(c)+'|'+str(set[0])+'|'+str(set[1])+'|'+str(set[2])+'|'+str(set[3]))
+            #print(set)
+        #print()
+        """
         for i in range(rows):
             csv3.append(str(c)+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32')))
+        """
+
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
@@ -843,7 +870,7 @@ for c in range(int(duration)):
     dist=getdist()
 
     get_0xe416()
-
+    get_0xe409()
     get_gyro()
     get_accel()
     #get_0xe437()
