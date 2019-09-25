@@ -40,6 +40,7 @@ parser.add_argument('-muxmkv', action='store_true', help='Key to mux meta-data s
 parser.add_argument('-sidecar', action='store_true', help='Key to generate XML sidecar file from XAVC S file (if you lost original XML sidecar written by camera)')
 parser.add_argument('-gpx', action='store_true', help='Write GPX Track file if GPS data available')
 parser.add_argument('-check',action='store_true', help='Just output some basic file data')
+parser.add_argument('-sens',action='store_true', help='Try to extract embedded gyroscope, accelerometer and OSS-sensor data if found')
 
 args = parser.parse_args()
 
@@ -144,15 +145,14 @@ def getdist():
 
 #Get Accel/Gyro TEST
 
-csv1 = []
-csv2 = []
-csv3 = []
+gyro_temp = ['frame,pitch,roll,yaw']
+acc_temp = ['frame,x,y,z']
+oss_temp = ['frame,scan,x,y,unkn']
 
 def get_gyro():
     k=sub.find('0xe43b',bytealigned = True)
     if len(k) == 0 :
-        dist = 'N/A'
-        return dist
+        return None
     try:
         sub.pos+=32
         rows = sub.read('int:32')
@@ -170,8 +170,8 @@ def get_gyro():
             #print("a1 =",round(float(a1*(10**a1e)),3), "a2 =",round(float(a2*(10**a2e)),3), "a3 =",round(float(a3*(10**a3e)),3))
             #print("a2 =",float(a2*(10**a2e)))
             #print("a3 =",float(a3*(10**a3e)))
-            #csv1.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
-            csv1.append(str(c)+'|'+str(pitch)+"|"+str(roll)+"|"+str(yaw))
+            #gyro_temp.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
+            gyro_temp.append(str(c)+','+str(pitch)+","+str(roll)+","+str(yaw))
             #print (a1,a2,a3)
 
 
@@ -217,30 +217,31 @@ def get_0xe409():
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
-def get_0xe416():
+def get_oss_table():
     k=sub.find('0xe416',bytealigned = True)
-    set = []
     if len(k) == 0 :
-        dist = 'N/A'
-        return dist
+        return None
     try:
         sub.pos+=32
         rows = sub.read('int:32')
         sets = sub.read('int:32')
-
+        if sets != 16: return None
         for i in range (rows):
             set=[]
             for k in range (int(sets/4)):
                 #fn= 2**((1-float(sub.read('uint:16'))/65536)*8)
                 #fn=round(fn,1)
                 set.append(sub.read('int:32'))
-            #csv3.append(str(c)+'|'+str(set[0])+'|'+str(set[1])+'|'+str(set[2])+'|'+str(set[3])+'|'+str(set[4])+'|'+str(set[5])+'|'+str(set[6])+'|'+str(set[7]))
-            csv3.append(str(c)+'|'+str(set[0])+'|'+str(set[1])+'|'+str(set[2])+'|'+str(set[3]))
+            #oss_temp.append(str(c)+'|'+str(set[0])+'|'+str(set[1])+'|'+str(set[2])+'|'+str(set[3])+'|'+str(set[4])+'|'+str(set[5])+'|'+str(set[6])+'|'+str(set[7]))
+
+
+            oss_temp.append(str(c)+','+str(set[0])+','+str(set[1])+','+str(set[2])+','+str(set[3]))
+            #print(oss_temp)
             #print(set)
         #print()
         """
         for i in range(rows):
-            csv3.append(str(c)+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32')))
+            oss_temp.append(str(c)+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32')))
         """
 
     except (bitstring.ReadError, ValueError) : return 'N/A'
@@ -249,8 +250,7 @@ def get_0xe416():
 def get_accel():
     k=sub.find('0xe44b',bytealigned = True)
     if len(k) == 0 :
-        dist = 'N/A'
-        return dist
+        return None
     try:
         sub.pos+=32
         rows = sub.read('int:32')
@@ -268,8 +268,8 @@ def get_accel():
             #print("a1 =",round(float(a1*(10**a1e)),3), "a2 =",round(float(a2*(10**a2e)),3), "a3 =",round(float(a3*(10**a3e)),3))
             #print("a2 =",float(a2*(10**a2e)))
             #print("a3 =",float(a3*(10**a3e)))
-            #csv1.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
-            csv2.append(str(c)+'|'+str(x)+"|"+str(y)+"|"+str(z))
+            #gyro_temp.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
+            acc_temp.append(str(c)+','+str(x)+","+str(y)+","+str(z))
             #print (b1,b2,b3)
 
 
@@ -760,6 +760,7 @@ print ('Framerate:', float(ts)/float(sd))
 print ('Video duration (sec):', float(duration.decode())/(float(ts)/float(sd)))
 if 'ExifGPS'.encode() in exifchk : print ('ExifGPS group detected in non-realtime meta-data section. GPX Track extraction possible with "-gpx" argument.')
 if args.gpx and 'ExifGPS'.encode() in exifchk : print ('"-gpx" argument specified. Will extract GPX track.')
+if args.sens: print ('"-sens" argument specified. Will try to decode and write embedded gyro/accel/OSS sensors tables if they are in file.')
 
 if args.sidecar == True:
     opt_sidecar()
@@ -830,6 +831,7 @@ old_dt = 0
 
 if modelname.decode() in ('DSC-RX0M2','ILCE-7RM4','DSC-RX100M7','MODEL-NAME'):
     block_length = 1024*8*3
+    print ('You have camera model with 3072 bytes RTMD blocks. They may contain also gyro/accel/oss_sensor data from built-in sensors. Try use "-sens" parameter to find&extract them.')
 else:
     block_length = 1024*8
 
@@ -868,13 +870,13 @@ for c in range(int(duration)):
         continue
     fn = getfn()
     dist=getdist()
-
-    get_0xe416()
-    get_0xe409()
-    get_gyro()
-    get_accel()
-    #get_0xe437()
-    #get_0xe447()
+    if args.sens:
+        #get_0xe409()
+        get_gyro()
+        get_accel()
+        get_oss_table()
+        #get_0xe437()
+        #get_0xe447()
     ss=  getss()
     iso= getiso()
     if iso == 'N/A':
@@ -895,7 +897,6 @@ for c in range(int(duration)):
         gps = getgps(old_dt)
     else : gps = 'N/A'
     c+=1
-    """
     f.write (str(c) +'\n')
     f.write (str(sampletime(ssec,sdur)) + '\n')
     f.write ('Frame: ' + str(c) + '/' + duration.decode() + '\n') #removed ('Model: ' + vendor + ' ' + modelname + ' |)
@@ -909,13 +910,13 @@ for c in range(int(duration)):
         f.write (ge  + '\n')
     #f.write (time + '\n') - timestamp (swiched off)
     f.write ('\n')
-    """
+
     if gps != 'N/A' :
         #print (gps)
         old_dt = float(gps[1])
     ssec=ssec+sdur
-    #sys.stdout.write ('\rProcessed ' + str(c) + ' frames of ' + str(duration.decode()) + '   (' + str(round(samples[0]/8/(1000**2))) + 'MB  of ' + str(round(filesize/(1000**2))) + 'MB)')
-    #sys.stdout.flush()
+    sys.stdout.write ('\rProcessed ' + str(c) + ' frames of ' + str(duration.decode()) + '   (' + str(round(samples[0]/8/(1000**2))) + 'MB  of ' + str(round(filesize/(1000**2))) + 'MB)')
+    sys.stdout.flush()
 
     if os.name == 'nt':
         if msvcrt.kbhit() and (msvcrt.getch() == b'\x1b'):
@@ -930,7 +931,7 @@ for c in range(int(duration)):
             print ('\n \n Aborted! Saving processed data...')
             break
 """
-"""
+
 with open(F[:-3]+'srt', 'w') as outfile:
     outfile.write(f.getvalue())
 
@@ -939,7 +940,7 @@ f.close()
 print ('\nLast frame processed:', c)
 print ('Success! SRT file created: ' + F[:-3]+'srt')
 
-"""
+
 
 if args.gpx and 'ExifGPS'.encode() in exifchk :
     print ('Writting GPX file')
@@ -948,22 +949,31 @@ if args.gpx and 'ExifGPS'.encode() in exifchk :
         outfile.write(gpx.to_xml('1.1'))
     print ('Finished writting GPX file:', F[:-3]+'GPX')
 
-with open(F[:-4]+'_table1.csv', 'w') as outfile:
-    for line in csv1:
-        outfile.write(line+'\n')
-print ('Finished writting CSV file 1')
+if args.sens:
+    if len(gyro_temp) != 1:
+        sys.stdout.write ('Gyro sensor data detected. Writting to CSV file... ')
+        with open(F[:-4]+'_gyro.csv', 'w') as outfile:
+            for line in gyro_temp:
+                outfile.write(line+'\n')
+        sys.stdout.write ('Done\n')
+    else: print("No gyro data detected")
 
-with open(F[:-4]+'_table2.csv', 'w') as outfile:
-    for line in csv2:
-        outfile.write(line+'\n')
-print ('Finished writting CSV file 2')
+    if len(acc_temp) != 1:
+        sys.stdout.write ('Accelerometer sensor data detected. Writting to CSV file... ')
+        with open(F[:-4]+'_accel.csv', 'w') as outfile:
+            for line in acc_temp:
+                outfile.write(line+'\n')
+        sys.stdout.write ('Done\n')
+    else: print("No accel data detected")
 
-with open(F[:-4]+'_table3.csv', 'w') as outfile:
-    for line in csv3:
-        outfile.write(line+'\n')
-print ('Finished writting CSV file 2')
+    if len(oss_temp) != 1:
+        sys.stdout.write ('Internal OSS sensor data detected. Writting to CSV file... ')
+        with open(F[:-4]+'_oss_data.csv', 'w') as outfile:
+            for line in oss_temp:
+                outfile.write(line+'\n')
+        sys.stdout.write ('Done\n')
+    else: print("No OSS sensor data detected")
 
 if args.muxmkv:
     opt_muxmkv()
-
 sys.exit()
