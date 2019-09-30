@@ -31,9 +31,9 @@ with open(filename, 'rb') as f:
             else:
                 s+=(l[i]+" ")
 
-        ghl=('06 0e 2b 34 02 53 01 01 0c 02 01 01 7f 01 00 00')
+        #ghl=('06 0e 2b 34 02 53 01 01 0c 02 01 01 7f 01 00 00')
         #print(s.find('06 0e 2b 34 02 53 01 01 0c 02 01 01 7f 01 00 00'))
-        s.replace(ghl,Fore.GREEN+ghl+'\033[0m')
+        #s.replace(ghl,Fore.GREEN+ghl+'\033[0m')
 
         print("\r"+s,flush=True)
         input()

@@ -145,11 +145,17 @@ def getdist():
 
 #Get Accel/Gyro TEST
 
-gyro_temp = ['frame,pitch,roll,yaw']
-acc_temp = ['frame,x,y,z']
-oss_temp = ['frame,scan,x,y,unkn']
+gyro_temp = ['frame,ts,pitch,roll,yaw']
+acc_temp = ['frame,ts,x,y,z']
+oss_temp = ['frame,ts,scan,x,y,unkn']
 
+gyro_ts = 0
+acc_ts = 0
+oss_ts = 0
+
+#0xe43b
 def get_gyro():
+    global gyro_ts
     k=sub.find('0xe43b',bytealigned = True)
     if len(k) == 0 :
         return None
@@ -160,24 +166,17 @@ def get_gyro():
         #os.system('cls')
         #sys.stdout.write ('\rFrame: '+str(c))
         for i in range(rows):
-            #a1e = sub.read('int:4')
             pitch = sub.read('intbe:16')
-            #a2e = sub.read('int:4')
             roll = sub.read('intbe:16')
-            #a3e = sub.read('int:4')
             yaw = sub.read('intbe:16')
-
-            #print("a1 =",round(float(a1*(10**a1e)),3), "a2 =",round(float(a2*(10**a2e)),3), "a3 =",round(float(a3*(10**a3e)),3))
-            #print("a2 =",float(a2*(10**a2e)))
-            #print("a3 =",float(a3*(10**a3e)))
-            #gyro_temp.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
-            gyro_temp.append(str(c)+','+str(pitch)+","+str(roll)+","+str(yaw))
-            #print (a1,a2,a3)
+            gyro_ts += sdur/rows
+            gyro_temp.append(str(c)+','+str(gyro_ts)+','+str(pitch)+","+str(roll)+","+str(yaw))
 
 
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
+#0xe437 - 4 bytes
 def get_0xe437():
     k=sub.find('0xe437',bytealigned = True)
     if len(k) == 0 :
@@ -191,6 +190,7 @@ def get_0xe437():
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
+#0xe447 - 4 bytes
 def get_0xe447():
     k=sub.find('0xe447',bytealigned = True)
     if len(k) == 0 :
@@ -204,6 +204,7 @@ def get_0xe447():
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
+#0xe447 - 8 bytes - Changing!!!
 def get_0xe409():
     k=sub.find('0xe409',bytealigned = True)
     if len(k) == 0 :
@@ -217,7 +218,9 @@ def get_0xe409():
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
+#0xe416
 def get_oss_table():
+    global oss_ts
     k=sub.find('0xe416',bytealigned = True)
     if len(k) == 0 :
         return None
@@ -232,10 +235,11 @@ def get_oss_table():
                 #fn= 2**((1-float(sub.read('uint:16'))/65536)*8)
                 #fn=round(fn,1)
                 set.append(sub.read('int:32'))
+                oss_ts+=sdur/rows
             #oss_temp.append(str(c)+'|'+str(set[0])+'|'+str(set[1])+'|'+str(set[2])+'|'+str(set[3])+'|'+str(set[4])+'|'+str(set[5])+'|'+str(set[6])+'|'+str(set[7]))
 
 
-            oss_temp.append(str(c)+','+str(set[0])+','+str(set[1])+','+str(set[2])+','+str(set[3]))
+            oss_temp.append(str(c)+','+str(oss_ts)+','+str(set[0])+','+str(set[1])+','+str(set[2])+','+str(set[3]))
             #print(oss_temp)
             #print(set)
         #print()
@@ -247,7 +251,45 @@ def get_oss_table():
     except (bitstring.ReadError, ValueError) : return 'N/A'
     return None
 
+def get_0xe423():
+    global oss_ts
+    k=sub.find('0xe423',bytealigned = True)
+    if len(k) == 0 :
+        return None
+    try:
+        sub.pos+=8*12
+        rows = sub.read('int:32')
+        sets = sub.read('int:32')
+        print(rows)
+        print(sets)
+        if sets != 4: return None
+        sset=[]
+        for i in range (rows):
+            set=[]
+            for k in range (sets):
+                #fn= 2**((1-float(sub.read('uint:16'))/65536)*8)
+                #fn=round(fn,1)
+                set.append(sub.read('int:32'))
+                oss_ts+=sdur/rows
+            sset.append(set)
+            #oss_temp.append(str(c)+'|'+str(set[0])+'|'+str(set[1])+'|'+str(set[2])+'|'+str(set[3])+'|'+str(set[4])+'|'+str(set[5])+'|'+str(set[6])+'|'+str(set[7]))
+        print(sset)
+        #print((str(c)+','+str(oss_ts)+','+str(set[0])+','+str(set[1])+','+str(set[2])+','+str(set[3])))
+            #oss_temp.append(str(c)+','+str(oss_ts)+','+str(set[0])+','+str(set[1])+','+str(set[2])+','+str(set[3]))
+            #print(oss_temp)
+            #print(set)
+        #print()
+        """
+        for i in range(rows):
+            oss_temp.append(str(c)+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32'))+'|'+str(sub.read('int:32')))
+        """
+
+    except (bitstring.ReadError, ValueError) : return 'N/A'
+    return None
+
+#0xe44b
 def get_accel():
+    global acc_ts
     k=sub.find('0xe44b',bytealigned = True)
     if len(k) == 0 :
         return None
@@ -264,12 +306,12 @@ def get_accel():
             y = sub.read('intbe:16')
             #a3e = sub.read('int:4')
             z = sub.read('intbe:16')
-
+            acc_ts+=sdur/rows
             #print("a1 =",round(float(a1*(10**a1e)),3), "a2 =",round(float(a2*(10**a2e)),3), "a3 =",round(float(a3*(10**a3e)),3))
             #print("a2 =",float(a2*(10**a2e)))
             #print("a3 =",float(a3*(10**a3e)))
             #gyro_temp.append(str(c)+'|'+str(float(a1*(10**a1e)))+"|"+str(float(a2*(10**a2e)))+"|"+str(float(a3*(10**a3e))))
-            acc_temp.append(str(c)+','+str(x)+","+str(y)+","+str(z))
+            acc_temp.append(str(c)+','+str(acc_ts)+','+str(x)+","+str(y)+","+str(z))
             #print (b1,b2,b3)
 
 
@@ -872,6 +914,7 @@ for c in range(int(duration)):
     dist=getdist()
     if args.sens:
         #get_0xe409()
+        get_0xe423()
         get_gyro()
         get_accel()
         get_oss_table()
