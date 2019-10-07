@@ -871,7 +871,7 @@ k=0
 offset = 0
 old_dt = 0
 
-if modelname.decode() in ('DSC-RX0M2','ILCE-7RM4','DSC-RX100M7','MODEL-NAME'):
+if modelname.decode() in ('DSC-RX0M2','ILCE-7RM4','DSC-RX100M7','ILCE-6600','MODEL-NAME'):
     block_length = 1024*8*3
     print ('You have camera model with 3072 bytes RTMD blocks. They may contain also gyro/accel/oss_sensor data from built-in sensors. Try use "-sens" parameter to find&extract them.')
 else:

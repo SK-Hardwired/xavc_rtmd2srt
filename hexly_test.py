@@ -13,7 +13,7 @@ from colorama import Fore, Back, Style
 #RTMD READ
 #filename = 'F:\\Skiba_video\\C0012_track3.rtmd'
 filename = sys.argv[1]
-rtmd_size = 1024*3
+rtmd_size = 1024*int(sys.argv[2])
 prev = [None]*rtmd_size
 s=""
 fr=1
