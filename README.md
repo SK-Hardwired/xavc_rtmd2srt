@@ -3,6 +3,8 @@ Extract realtime meta-data (i.e. per-frame) from Sony XAVC video and render to s
 
 Extract GPS data (if video shot on GPS or Bluetooth-link enabled Sony camera) and extract to GPX file.
 
+**New!** Extract raw per-frame gyro/accelerometer data from video clips recorded with DSC-RX100M7 and DSC-RX0M2 cameras
+
 ![alt text](ax700_meta_srt.jpg "Real-time shooting meta-data displayed in VLC over video")
 
 Besides of non-realtime metadata which MediaInfo or Exiftool can see, Sony cameras record many other real-time meta-data for every frame such as it's ISO, F number, shutter speed, AE mode and even focus distance in special Acquisition Meta-data section.
@@ -27,6 +29,7 @@ Meta-data supported:
 - recording date and time in YYYY/MM/DD HH/MM/SS format as it is set in camera settings (**output disabled yet**)
 - timecode (N/A for models w/o timecode fieature; **output not implemented yet**)
 - GPS coords, timestamp, elevation, DOP, GPSFix, [speed, heading] (if available)
+- raw gyro/accelerometer sensors data recorded into videos by new Sony Camera models (DSC-RX100M7 & DSC-RX0M2) to separate tables
 
 Meta-data not supported (as no any existing consumer camera models record it):
 - lens focal length, zoom position
@@ -45,12 +48,13 @@ Optional arguments:
 - **-muxmkv** - create new MKV file with embedded subtitles stream with meta-data (requires **ffmpeg.exe** to be in same folder)
 - **-gpx** - extract per-frame GPS meta-data and export to GPX file (track: latitude, longtitude, timestamp, speed, DOP, gps_fix(2d/3d), course)
 - **-check** - display basic file check info. Camera model, fps, framecount, if GPS meta-data embedded
+- NEW! **-sens** - extract raw gyro/accelerometer data from videos recorded with new sony camera models (DSC-RX100M7 & DSC-RX0M2)
 
 Note: Works well with Sony ILCE-9/7RM3/7M3, DSC-RX10M4, FDR-AX700, ILCE-6000, ILCE-5100 videos. GPS export works well with DashWare editor
 
 Written in: Python 3.7
 Required modules:
-- gpxpy
+- gpxpy (please replace the gpxpy file from original gpxpy package with included one)
 - bitstring
 - argparse
 
