@@ -731,7 +731,8 @@ print ('Opened file ' + F)
 
 print ('Analyzing...')
 s = ConstBitStream(filename=F)
-if s[:96] != '0x0000001C6674797058415643' :
+print(s[32:96])
+if s[32:96] != '0x6674797058415643' :
     print ('No XAVC type tag detected. Please user original XAVC MP4 file. Exiting.')
     sys.exit()
 
@@ -875,7 +876,7 @@ k=0
 offset = 0
 old_dt = 0
 
-if modelname.decode() in ('DSC-RX0M2','ILCE-7RM4','DSC-RX100M7','ILCE-6600','MODEL-NAME', 'ILCE-9M2'):
+if modelname.decode() in ('DSC-RX0M2','ILCE-7RM4','DSC-RX100M7','ILCE-6600','MODEL-NAME', 'ILCE-9M2','ILCE-7SM3','ILCE-7C','ILCE-1','ZV-1','ILME-FX3'):
     block_length = 1024*8*3
     if not args.sens:
         print ('You have camera model with 3072 bytes RTMD blocks. They may contain also gyro/accel/oss_sensor data from built-in sensors. Try use "-sens" parameter to find&extract them.')
